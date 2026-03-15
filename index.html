@@ -1,0 +1,1462 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>전자파 시험 시뮬레이터</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="site-header">
+        <div>
+          <p class="eyebrow" data-i18n="brandEyebrow">시험/계측 연습</p>
+          <h1 data-i18n="brandTitle">전자파 시험 시뮬레이터</h1>
+        </div>
+
+        <div class="header-actions">
+          <nav class="nav-pills" aria-label="Simulator navigation">
+            <button id="navHome" class="nav-button is-active" type="button" data-view-target="home" data-i18n="navHome">
+              홈
+            </button>
+            <button id="navShield" class="nav-button" type="button" data-view-target="shieldAntenna" data-i18n="navShield">
+              차폐 실험
+            </button>
+            <button id="navPci" class="nav-button" type="button" disabled data-i18n="navPci">PCI 실험</button>
+            <span class="nav-pills-divider" data-i18n="navToolsLabel">보조 측정 장비</span>
+            <button id="navScope" class="nav-button" type="button" data-view-target="scope" data-i18n="navScope">
+              오실로스코프
+            </button>
+            <button
+              id="navAnalyzer"
+              class="nav-button"
+              type="button"
+              data-view-target="analyzer"
+              data-i18n="navAnalyzer"
+            >
+              스펙트럼 분석기
+            </button>
+            <button
+              id="navGenerator"
+              class="nav-button"
+              type="button"
+              data-view-target="generator"
+              data-i18n="navGenerator"
+            >
+              시그널 제네레이터
+            </button>
+            <button id="navManual" class="nav-button" type="button" data-view-target="manual" data-i18n="navManual">
+              사용설명서
+            </button>
+          </nav>
+          <button id="languageToggle" class="ghost-button compact-button" type="button">English</button>
+        </div>
+      </header>
+
+      <main class="view-stack">
+        <section id="homeView" class="view is-active">
+          <section class="panel hero-panel">
+            <div class="hero-copy">
+              <p class="eyebrow" data-i18n="homeEyebrow">HOME</p>
+              <h2 data-i18n="homeTitle">시험 시뮬레이터 홈</h2>
+              <p class="hero-text" data-i18n="homeDescription">
+                지금 만든 측정 장비 화면은 보조 도구로 두고, 메인 진입은 시험 시뮬레이터 중심으로 정리했습니다. 우선은 차폐 실험을 먼저
+                진행하고, PCI 실험은 다음 MVP 단계에서 이어서 붙일 수 있게 홈 구조를 맞춰둔 상태입니다.
+              </p>
+              <div class="hero-actions">
+                <button id="homeShieldButton" class="primary-button" type="button" data-i18n="homeScopeCta">
+                  차폐 실험 시작
+                </button>
+                <button id="homePciButton" class="ghost-button" type="button" disabled data-i18n="homeAnalyzerCta">
+                  PCI 실험 준비 중
+                </button>
+              </div>
+            </div>
+
+            <div class="hero-side">
+              <p class="eyebrow" data-i18n="homeFeatureEyebrow">MVP 기준</p>
+              <h3 data-i18n="homeFeatureTitle">현재 우선 흐름</h3>
+              <ul class="feature-list">
+                <li data-i18n="homeFeature1">1. LOS 개방 상태에서 기준값 측정</li>
+                <li data-i18n="homeFeature2">2. 수신 안테나를 차폐 상자에 넣고 비교</li>
+                <li data-i18n="homeFeature3">3. 장비 화면은 상단 메뉴에서 보조 도구로 사용</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="equipment-grid">
+            <article class="panel equipment-card available">
+              <div class="panel-section">
+                <span class="badge badge-available" data-i18n="statusAvailable">사용 가능</span>
+                <h3 data-i18n="homeCardScopeTitle">차폐 실험</h3>
+                <p data-i18n="homeCardScopeDesc">
+                  LOS 송신/수신 안테나를 두고 기준값을 저장한 뒤, 수신 안테나를 가상 차폐 상자에 넣어 차폐 전후 감쇠량을 비교할 수 있습니다.
+                </p>
+                <button id="shieldingCardButton" class="primary-button card-button" type="button" data-i18n="homeCardScopeButton">
+                  실험 열기
+                </button>
+              </div>
+            </article>
+
+            <article class="panel equipment-card planned">
+              <div class="panel-section">
+                <span class="badge badge-planned" data-i18n="statusPlanned">준비 중</span>
+                <h3 data-i18n="homeCardAnalyzerTitle">PCI 실험</h3>
+                <p data-i18n="homeCardAnalyzerDesc">
+                  PCI 실험은 다음 MVP에서 추가할 예정입니다. 메인 홈 구조는 먼저 잡아두고, 현재는 차폐 실험을 우선 사용하도록 구성했습니다.
+                </p>
+                <button
+                  id="pciCardButton"
+                  class="ghost-button card-button"
+                  type="button"
+                  disabled
+                  data-i18n="homeCardAnalyzerButton"
+                >
+                  준비 중
+                </button>
+              </div>
+            </article>
+          </section>
+        </section>
+
+        <section id="scopeView" class="view">
+          <section class="panel instrument-banner">
+            <div>
+              <p class="eyebrow" data-i18n="scopeEyebrow">보조 측정 장비</p>
+              <h2 data-i18n="scopeTitle">오실로스코프</h2>
+              <p class="instrument-copy" data-i18n="scopeDescription">
+                예시 시료를 선택하고 파형을 보면서 스케일과 트리거를 맞추는 연습을 해보세요.
+              </p>
+            </div>
+
+            <div class="status-cluster">
+              <div class="status-pill">
+                <span class="status-dot" id="runIndicator"></span>
+                <span id="runStateLabel">동작</span>
+              </div>
+              <button id="runToggle" class="ghost-button" type="button">정지</button>
+            </div>
+          </section>
+
+          <div class="layout">
+            <aside class="panel controls-panel">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="sampleEyebrow">시료</p>
+                  <h2 data-i18n="sampleTitle">측정 신호</h2>
+                </div>
+
+                <label class="field">
+                  <span data-i18n="presetLabel">예시 시료</span>
+                  <select id="presetSelect"></select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="waveformLabel">파형</span>
+                  <select id="waveformSelect"></select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="amplitudeLabel">진폭 (V)</span>
+                  <input id="amplitudeInput" type="range" min="0.2" max="10" step="0.1" />
+                  <output id="amplitudeOutput"></output>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="frequencyLabel">주파수 (Hz)</span>
+                  <input id="frequencyInput" type="range" min="10" max="5000" step="10" />
+                  <output id="frequencyOutput"></output>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="offsetLabel">오프셋 (V)</span>
+                  <input id="offsetInput" type="range" min="-5" max="5" step="0.1" />
+                  <output id="offsetOutput"></output>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="noiseLabel">노이즈 (%)</span>
+                  <input id="noiseInput" type="range" min="0" max="40" step="1" />
+                  <output id="noiseOutput"></output>
+                </label>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="channelEyebrow">채널</p>
+                  <h2 data-i18n="channelTitle">CH1 수직 설정</h2>
+                </div>
+
+                <label class="field">
+                  <span data-i18n="voltsPerDivLabel">Volts / div</span>
+                  <select id="voltsPerDiv">
+                    <option value="0.2">0.2 V</option>
+                    <option value="0.5">0.5 V</option>
+                    <option value="1" selected>1 V</option>
+                    <option value="2">2 V</option>
+                    <option value="5">5 V</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="couplingLabel">결합 방식</span>
+                  <select id="couplingSelect">
+                    <option value="dc">DC</option>
+                    <option value="ac">AC</option>
+                  </select>
+                </label>
+
+                <label class="field field-inline">
+                  <span data-i18n="invertLabel">반전</span>
+                  <input id="invertToggle" type="checkbox" />
+                </label>
+              </section>
+            </aside>
+
+            <section class="panel scope-panel">
+              <div class="scope-toolbar">
+                <div class="toolbar-group">
+                  <span class="toolbar-label" data-i18n="toolbarTimeLabel">Time / div</span>
+                  <select id="timePerDiv">
+                    <option value="0.0001">100 us</option>
+                    <option value="0.0002">200 us</option>
+                    <option value="0.0005">500 us</option>
+                    <option value="0.001">1 ms</option>
+                    <option value="0.002">2 ms</option>
+                    <option value="0.005">5 ms</option>
+                    <option value="0.01">10 ms</option>
+                  </select>
+                </div>
+
+                <div class="toolbar-group">
+                  <span class="toolbar-label" data-i18n="toolbarTriggerLabel">트리거 레벨</span>
+                  <input id="triggerLevel" type="range" min="-5" max="5" step="0.1" />
+                  <output id="triggerOutput"></output>
+                </div>
+              </div>
+
+              <div class="scope-screen-shell">
+                <canvas id="scopeCanvas" width="960" height="560"></canvas>
+                <div class="screen-overlay">
+                  <span id="overlayScale"></span>
+                  <span id="overlayTrigger"></span>
+                </div>
+              </div>
+            </section>
+
+            <aside class="panel readout-panel">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="measureEyebrow">자동 측정</p>
+                  <h2 data-i18n="measureTitle">측정값</h2>
+                </div>
+                <dl class="metrics">
+                  <div class="metric-card">
+                    <dt>Vpp</dt>
+                    <dd id="metricVpp">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt>Vrms</dt>
+                    <dd id="metricVrms">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="metricFreq">주파수</dt>
+                    <dd id="metricFreq">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="metricPeriod">주기</dt>
+                    <dd id="metricPeriod">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="metricMean">평균</dt>
+                    <dd id="metricMean">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="metricMax">최대값</dt>
+                    <dd id="metricMax">-</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="hintsEyebrow">연습 과제</p>
+                  <h2 data-i18n="hintsTitle">추천 연습</h2>
+                </div>
+                <ul class="task-list">
+                  <li data-i18n="hint1">AC coupling으로 바꾸고 평균값이 어떻게 달라지는지 보세요.</li>
+                  <li data-i18n="hint2">Time/div를 바꿔서 트리거가 안정적으로 걸리는 지점을 찾으세요.</li>
+                  <li data-i18n="hint3">노이즈를 올리고 Vpp, Vrms가 어떻게 변하는지 비교해보세요.</li>
+                </ul>
+              </section>
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="flowSummaryEyebrow">실험 요약</p>
+                  <h2 data-i18n="flowSummaryTitle">입력된 수치</h2>
+                </div>
+                <ul class="summary-list compact-summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryTx">송신 안테나</span>
+                    <strong data-flow-summary-value="tx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRx">수신 안테나</span>
+                    <strong data-flow-summary-value="rx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryPlacement">수신 위치</span>
+                    <strong data-flow-summary-value="placement">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryDistance">LOS 거리</span>
+                    <strong data-flow-summary-value="distance">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldMaterial">차폐 재질</span>
+                    <strong data-flow-summary-value="shieldMaterial">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldEffectiveness">차폐 성능</span>
+                    <strong data-flow-summary-value="shieldEffectiveness">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldLeakage">누설</span>
+                    <strong data-flow-summary-value="shieldLeakage">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorFreq">제네레이터 주파수</span>
+                    <strong data-flow-summary-value="generatorFreq">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorLevel">제네레이터 레벨</span>
+                    <strong data-flow-summary-value="generatorLevel">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorState">송신 상태</span>
+                    <strong data-flow-summary-value="generatorState">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryCenter">Center</span>
+                    <strong data-flow-summary-value="center">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummarySpan">Span</span>
+                    <strong data-flow-summary-value="span">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRbw">RBW</span>
+                    <strong data-flow-summary-value="rbw">-</strong>
+                  </li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <div id="shieldFlowHiddenHost" class="flow-hidden-host" aria-hidden="true"></div>
+
+        <section id="shieldAntennaView" class="view">
+          <section class="panel instrument-banner">
+            <div>
+              <p class="eyebrow" data-i18n="shieldAntennaEyebrow">차폐 실험 STEP 1 / 4</p>
+              <h2 data-i18n="shieldAntennaTitle">안테나 설정</h2>
+              <p class="instrument-copy" data-i18n="shieldAntennaDescription">
+                먼저 송신 안테나, 수신 안테나, 차폐함 슬롯을 배치하고 LOS 환경을 만듭니다.
+              </p>
+            </div>
+
+            <div class="hero-actions">
+              <button id="shieldAntennaNextButton" class="primary-button" type="button" data-i18n="shieldAntennaNextButton">
+                다음: 실험 수치 입력
+              </button>
+            </div>
+          </section>
+
+          <div class="shield-step-layout">
+            <div id="shieldAntennaSlot" class="shield-flow-slot"></div>
+
+            <aside class="panel flow-summary-panel">
+              <div class="panel-section">
+                <p class="eyebrow" data-i18n="flowSummaryEyebrow">실험 요약</p>
+                <h3 data-i18n="flowSummaryTitle">입력된 수치</h3>
+                <ul class="summary-list compact-summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryTx">송신 안테나</span>
+                    <strong data-flow-summary-value="tx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRx">수신 안테나</span>
+                    <strong data-flow-summary-value="rx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryPlacement">수신 위치</span>
+                    <strong data-flow-summary-value="placement">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryDistance">LOS 거리</span>
+                    <strong data-flow-summary-value="distance">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldMaterial">차폐 재질</span>
+                    <strong data-flow-summary-value="shieldMaterial">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldEffectiveness">차폐 성능</span>
+                    <strong data-flow-summary-value="shieldEffectiveness">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldLeakage">누설</span>
+                    <strong data-flow-summary-value="shieldLeakage">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorFreq">제네레이터 주파수</span>
+                    <strong data-flow-summary-value="generatorFreq">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorLevel">제네레이터 레벨</span>
+                    <strong data-flow-summary-value="generatorLevel">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorState">송신 상태</span>
+                    <strong data-flow-summary-value="generatorState">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryCenter">Center</span>
+                    <strong data-flow-summary-value="center">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummarySpan">Span</span>
+                    <strong data-flow-summary-value="span">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRbw">RBW</span>
+                    <strong data-flow-summary-value="rbw">-</strong>
+                  </li>
+                </ul>
+              </div>
+              <div class="panel-section support-tools-panel">
+                <p class="eyebrow" data-i18n="supportToolsEyebrow">보조 측정 장비</p>
+                <h3 data-i18n="supportToolsTitle">장비 바로가기</h3>
+                <p class="field-note" data-i18n="supportToolsNote">
+                  실험 진행 중 필요할 때 보조 측정 장비 화면으로 이동해 현재 수치와 측정 화면을 함께 확인할 수 있습니다.
+                </p>
+                <div class="support-tool-grid">
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="scope" data-i18n="navScope">
+                    오실로스코프
+                  </button>
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="generator" data-i18n="navGenerator">
+                    시그널제네레이터
+                  </button>
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="analyzer" data-i18n="navAnalyzer">
+                    시그널애널라이저
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="shieldSetupView" class="view">
+          <section class="panel instrument-banner">
+            <div>
+              <p class="eyebrow" data-i18n="shieldSetupEyebrow">차폐 실험 STEP 2 / 4</p>
+              <h2 data-i18n="shieldSetupTitle">실험 수치 입력</h2>
+              <p class="instrument-copy" data-i18n="shieldSetupDescription">
+                LOS 거리, 차폐 조건, 스펙트럼 분석기 sweep 값을 입력하고 제네레이터 설정 단계로 이동합니다.
+              </p>
+            </div>
+
+            <div class="hero-actions">
+              <button id="shieldSetupBackButton" class="ghost-button" type="button" data-i18n="shieldSetupBackButton">
+                이전: 안테나 설정
+              </button>
+              <button id="shieldSetupNextButton" class="primary-button" type="button" data-i18n="shieldSetupNextButton">
+                다음: 제네레이터
+              </button>
+            </div>
+          </section>
+
+          <div class="shield-step-layout">
+            <div id="shieldSetupSlot" class="shield-flow-slot"></div>
+
+            <aside class="panel flow-summary-panel">
+              <div class="panel-section">
+                <p class="eyebrow" data-i18n="flowSummaryEyebrow">실험 요약</p>
+                <h3 data-i18n="flowSummaryTitle">입력된 수치</h3>
+                <ul class="summary-list compact-summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryTx">송신 안테나</span>
+                    <strong data-flow-summary-value="tx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRx">수신 안테나</span>
+                    <strong data-flow-summary-value="rx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryPlacement">수신 위치</span>
+                    <strong data-flow-summary-value="placement">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryDistance">LOS 거리</span>
+                    <strong data-flow-summary-value="distance">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldMaterial">차폐 재질</span>
+                    <strong data-flow-summary-value="shieldMaterial">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldEffectiveness">차폐 성능</span>
+                    <strong data-flow-summary-value="shieldEffectiveness">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldLeakage">누설</span>
+                    <strong data-flow-summary-value="shieldLeakage">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorFreq">제네레이터 주파수</span>
+                    <strong data-flow-summary-value="generatorFreq">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorLevel">제네레이터 레벨</span>
+                    <strong data-flow-summary-value="generatorLevel">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorState">송신 상태</span>
+                    <strong data-flow-summary-value="generatorState">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryCenter">Center</span>
+                    <strong data-flow-summary-value="center">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummarySpan">Span</span>
+                    <strong data-flow-summary-value="span">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRbw">RBW</span>
+                    <strong data-flow-summary-value="rbw">-</strong>
+                  </li>
+                </ul>
+              </div>
+              <div class="panel-section support-tools-panel">
+                <p class="eyebrow" data-i18n="supportToolsEyebrow">보조 측정 장비</p>
+                <h3 data-i18n="supportToolsTitle">장비 바로가기</h3>
+                <p class="field-note" data-i18n="supportToolsNote">
+                  실험 진행 중 필요할 때 보조 측정 장비 화면으로 이동해 현재 수치와 측정 화면을 함께 확인할 수 있습니다.
+                </p>
+                <div class="support-tool-grid">
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="scope" data-i18n="navScope">
+                    오실로스코프
+                  </button>
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="generator" data-i18n="navGenerator">
+                    시그널제네레이터
+                  </button>
+                  <button class="ghost-button support-tool-button" type="button" data-view-target="analyzer" data-i18n="navAnalyzer">
+                    시그널애널라이저
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="analyzerView" class="view">
+          <section class="panel instrument-banner analyzer-photo-banner">
+            <div>
+              <p class="eyebrow" data-i18n="analyzerEyebrow">시험 시뮬레이터</p>
+              <h2 data-i18n="analyzerTitle">차폐 실험</h2>
+              <p class="instrument-copy" data-i18n="analyzerDescription">
+                안테나 카드를 스테이지에 끌어 놓고 LOS 환경을 만든 뒤, 기준값 저장과 차폐 전후 비교를 진행하세요.
+              </p>
+            </div>
+
+            <div class="status-cluster">
+              <div class="status-pill">
+                <span class="status-dot" id="analyzerStatusDot"></span>
+                <span id="analyzerLinkStatus">LOS ACTIVE</span>
+              </div>
+              <button id="captureBaselineButton" class="primary-button" type="button" data-i18n="captureBaselineButton">
+                기준값 저장
+              </button>
+              <button id="clearBaselineButton" class="ghost-button" type="button" data-i18n="clearBaselineButton">
+                기준값 지우기
+              </button>
+            </div>
+          </section>
+
+          <section class="panel workflow-panel">
+            <div class="workflow-panel-grid">
+              <div class="workflow-strip">
+                <article class="workflow-card is-active">
+                  <span class="workflow-step" data-i18n="workflowStepAntenna">1. 안테나 설정</span>
+                  <h3 data-i18n="workflowAntennaTitle">안테나 배치</h3>
+                  <p data-i18n="workflowAntennaDesc">먼저 TX/RX/차폐함 슬롯에 안테나를 배치합니다.</p>
+                </article>
+
+                <article class="workflow-card">
+                  <span class="workflow-step" data-i18n="workflowStepGenerator">2. 제네레이터 설정</span>
+                  <h3 data-i18n="workflowGeneratorTitle">시그널 제네레이터</h3>
+                  <p data-i18n="workflowGeneratorDesc">주파수와 LEVEL을 맞춘 뒤 애널라이저로 돌아와 확인합니다.</p>
+                  <button id="workflowToGeneratorButton" class="ghost-button card-button" type="button" data-i18n="workflowToGeneratorButton">
+                    제네레이터 설정하러 가기
+                  </button>
+                </article>
+
+                <article class="workflow-card">
+                  <span class="workflow-step" data-i18n="workflowStepAnalyzer">3. 애널라이저 확인</span>
+                  <h3 data-i18n="workflowAnalyzerTitle">기준값 / 스펙트럼 확인</h3>
+                  <p data-i18n="workflowAnalyzerDesc">마지막으로 기준값을 저장하고 차폐 전후 스펙트럼을 비교합니다.</p>
+                </article>
+              </div>
+
+              <aside class="workflow-settings">
+                <p class="eyebrow" data-i18n="workflowSettingsEyebrow">설정 수치</p>
+                <h3 data-i18n="workflowSettingsTitle">현재 실험 값</h3>
+                <ul class="summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="workflowTxValueLabel">송신 안테나</span>
+                    <strong id="workflowTxValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowRxValueLabel">수신 안테나</span>
+                    <strong id="workflowRxValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowRxPlacementLabel">수신 위치</span>
+                    <strong id="workflowRxPlacementValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowGeneratorFreqLabel">제네레이터 주파수</span>
+                    <strong id="workflowFrequencyValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowGeneratorLevelLabel">제네레이터 레벨</span>
+                    <strong id="workflowLevelValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowCenterLabel">Center</span>
+                    <strong id="workflowCenterValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="workflowRbwLabel">RBW</span>
+                    <strong id="workflowRbwValue">-</strong>
+                  </li>
+                </ul>
+              </aside>
+            </div>
+          </section>
+
+          <section id="experimentSetupPanel" class="panel experiment-setup-panel">
+            <div class="experiment-setup-grid">
+              <div class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="antennaDeckEyebrow">안테나 보관함</p>
+                  <h2 data-i18n="antennaDeckTitle">드래그 안테나 카드</h2>
+                </div>
+                <p class="field-note" data-i18n="antennaDeckNote">
+                  사진은 나중에 넣을 수 있도록 비워뒀습니다. 아래 안테나 카드 4개를 송신 또는 수신 슬롯으로 끌어오세요.
+                </p>
+                <div id="antennaInventory" class="antenna-inventory"></div>
+              </div>
+
+              <div class="panel-section experiment-stage-panel">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="stageEyebrow">실험 스테이지</p>
+                  <h2 data-i18n="stageTitle">LOS 배치 보드</h2>
+                </div>
+                <p class="field-note" data-i18n="stageLead">
+                  위쪽은 송신/수신 슬롯이고, 아래쪽은 차폐함 슬롯입니다. 카드를 드래그하면 아래 설정 패널과 분석 화면이 자동으로 연동됩니다.
+                </p>
+
+                <div class="los-stage-field">
+                  <div class="los-stage-top">
+                    <div id="txDropZone" class="stage-drop-zone" data-role="tx">
+                      <p class="stage-slot-label" data-i18n="stageTxSlot">송신 안테나 슬롯</p>
+                      <div class="stage-slot-card">
+                        <div class="stage-thumb">
+                          <span data-i18n="stageImagePlaceholder">이미지 자리</span>
+                        </div>
+                        <div class="stage-slot-copy">
+                          <strong id="txStageName">미배치</strong>
+                          <span id="txStageBand">안테나를 끌어오세요</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="stage-connector">
+                      <div class="stage-beam-label" data-i18n="stageLosLabel">LOS 경로</div>
+                      <div class="stage-beam-line"></div>
+                      <div class="stage-distance-chip">
+                        <span data-i18n="distanceLabel">LOS 거리 (m)</span>
+                        <strong id="stageDistanceValue">-</strong>
+                      </div>
+                    </div>
+
+                    <div id="rxDropZone" class="stage-drop-zone" data-role="rx">
+                      <p class="stage-slot-label" data-i18n="stageRxSlot">수신 안테나 슬롯</p>
+                      <div class="stage-slot-card">
+                        <div class="stage-thumb">
+                          <span data-i18n="stageImagePlaceholder">이미지 자리</span>
+                        </div>
+                        <div class="stage-slot-copy">
+                          <strong id="rxStageName">미배치</strong>
+                          <span id="rxStageBand">안테나를 끌어오세요</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="shieldDropZone" class="shield-drop-zone" data-role="shield">
+                    <div class="shield-drop-header">
+                      <p class="stage-slot-label" data-i18n="stageShieldSlot">차폐함 슬롯</p>
+                      <span id="shieldStageBadge" class="stage-shield-badge stage-shield-badge-inline">차폐함 OFF</span>
+                    </div>
+                    <div class="stage-slot-card">
+                      <div class="stage-thumb">
+                        <span data-i18n="stageImagePlaceholder">이미지 자리</span>
+                      </div>
+                      <div class="stage-slot-copy">
+                        <strong id="shieldStageName">미배치</strong>
+                        <span id="shieldStageBand">수신 안테나를 차폐함으로 이동하세요</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="stage-hint" data-i18n="stageDropHint">
+                  팁: 개방 상태는 수신 슬롯에, 차폐 상태는 차폐함 슬롯에 수신 안테나를 놓으면 됩니다.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section id="quickSetupPanel" class="panel quick-setup-panel">
+            <div class="panel-section">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="quickSetupEyebrow">직접 입력</p>
+                <h2 data-i18n="quickSetupTitle">2. 실험 수치 바로 입력</h2>
+              </div>
+              <p class="field-note" data-i18n="quickSetupNote">
+                안테나 배치가 끝나면 여기에서 LOS 거리, 차폐 값, 스펙트럼 분석기 sweep 값을 바로 입력하고 다음 단계로 제네레이터를 설정합니다.
+              </p>
+
+              <div class="quick-input-grid">
+                <label class="field">
+                  <span data-i18n="quickDistanceLabel">LOS 거리</span>
+                  <div class="field-input-inline">
+                    <input id="quickDistanceInput" type="number" min="1" max="10" step="0.1" />
+                    <span class="field-unit">m</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="quickShieldEffectivenessLabel">차폐 성능</span>
+                  <div class="field-input-inline">
+                    <input id="quickShieldEffectivenessInput" type="number" min="20" max="120" step="1" />
+                    <span class="field-unit">dB</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="quickShieldLeakageLabel">누설</span>
+                  <div class="field-input-inline">
+                    <input id="quickShieldLeakageInput" type="number" min="0" max="80" step="1" />
+                    <span class="field-unit">%</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="quickCenterLabel">Center</span>
+                  <div class="field-input-inline">
+                    <input id="quickCenterInput" type="number" min="10" max="18000" step="1" />
+                    <span class="field-unit">MHz</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="quickSpanLabel">Span</span>
+                  <div class="field-input-inline">
+                    <input id="quickSpanInput" type="number" min="10" max="5000" step="10" />
+                    <span class="field-unit">MHz</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="quickRbwLabel">RBW</span>
+                  <div class="field-input-inline">
+                    <input id="quickRbwInput" type="number" min="10" max="5000" step="10" />
+                    <span class="field-unit">kHz</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="workflow-action-row">
+                <button id="quickSetupToGeneratorButton" class="primary-button" type="button" data-i18n="quickSetupToGeneratorButton">
+                  3. 제네레이터 설정하러 가기
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <div class="layout analyzer-layout analyzer-photo-layout">
+            <aside class="panel controls-panel analyzer-keypad-panel">
+              <div class="analyzer-console-shell">
+                <div class="analyzer-hardkey-grid" aria-label="Spectrum analyzer hardkeys">
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="select-center" data-i18n="analyzerHardkeyFreq">FREQ / CHANNEL</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="select-span" data-i18n="analyzerHardkeySpan">SPAN</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="select-ref" data-i18n="analyzerHardkeyAmpt">AMPT / SCALE</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="auto-set" data-i18n="analyzerHardkeyAuto">AUTO SET</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="select-rbw" data-i18n="analyzerHardkeyBw">BW</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="toggle-sweep" data-i18n="analyzerHardkeySweep">SWEEP</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="toggle-reference" data-i18n="analyzerHardkeyTrace">TRACE</button>
+                  <button class="analyzer-hardkey analyzer-hardkey-disabled" type="button" disabled data-i18n="analyzerHardkeyTrig">TRIG</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="measure-focus" data-i18n="analyzerHardkeyMeas">MEAS</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="capture-baseline" data-i18n="analyzerHardkeyMeasConfig">MEAS CONFIG</button>
+                  <button class="analyzer-hardkey analyzer-hardkey-disabled" type="button" disabled data-i18n="analyzerHardkeyLines">LINES</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="open-generator" data-i18n="analyzerHardkeyIo">INPUT / OUTPUT</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="toggle-marker" data-i18n="analyzerHardkeyMarker">MKR</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="peak-search" data-i18n="analyzerHardkeyPeak">PEAK SEARCH</button>
+                  <button class="analyzer-hardkey analyzer-hardkey-disabled" type="button" disabled data-i18n="analyzerHardkeyView">VIEW SIGNAL</button>
+                  <button class="analyzer-hardkey" type="button" data-analyzer-action="clear-baseline" data-i18n="analyzerHardkeyClear">CLEAR REF</button>
+                </div>
+
+                <section class="analyzer-entry-console" aria-label="Spectrum analyzer entry">
+                  <div class="analyzer-entry-head">
+                    <span data-i18n="analyzerEntryTargetLabel">Selected</span>
+                    <strong id="analyzerEntryTarget">Center</strong>
+                  </div>
+                  <div id="analyzerEntryBuffer" class="analyzer-entry-buffer">120.0 MHz</div>
+                  <div class="analyzer-entry-meta">
+                    <span id="analyzerStepDisplay">Step 5.0 MHz</span>
+                    <span id="analyzerScaleMeta" data-i18n="analyzerEntryHint">숫자를 누른 뒤 단위 버튼 또는 ENTER를 누르세요.</span>
+                  </div>
+                </section>
+
+                <div class="analyzer-console-lower">
+                  <div class="analyzer-keypad-grid" aria-label="Spectrum analyzer keypad">
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="7">7</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="8">8</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="9">9</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="4">4</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="5">5</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="6">6</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="1">1</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="2">2</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="3">3</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="0">0</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad=".">.</button>
+                    <button class="analyzer-keypad-button" type="button" data-analyzer-keypad="-">-</button>
+                  </div>
+
+                  <div class="analyzer-side-console">
+                    <div class="analyzer-unit-column">
+                      <button class="analyzer-unit-button" type="button" data-analyzer-unit="ghz">GHz</button>
+                      <button class="analyzer-unit-button" type="button" data-analyzer-unit="mhz">MHz</button>
+                      <button class="analyzer-unit-button" type="button" data-analyzer-unit="khz">kHz</button>
+                      <button class="analyzer-unit-button" type="button" data-analyzer-unit="hz">Hz</button>
+                    </div>
+
+                    <div class="analyzer-entry-controls">
+                      <button class="analyzer-control-button" type="button" data-analyzer-action="clear-entry" data-i18n="analyzerKeyEsc">ESC</button>
+                      <button class="analyzer-control-button" type="button" data-analyzer-action="backspace-entry" data-i18n="analyzerKeyBackspace">BACK SPACE</button>
+                      <button class="analyzer-control-button" type="button" data-analyzer-action="enter-entry" data-i18n="analyzerKeyEnter">ENTER</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="analyzer-rotary-cluster" aria-label="Spectrum analyzer tuning controls">
+                  <div class="analyzer-rotary-knob"></div>
+                  <div class="analyzer-arrow-pad">
+                    <button class="analyzer-arrow-button" type="button" data-analyzer-action="nudge-up" aria-label="Nudge up">▲</button>
+                    <button class="analyzer-arrow-button" type="button" data-analyzer-action="nudge-left" aria-label="Nudge left">◀</button>
+                    <button class="analyzer-arrow-button" type="button" data-analyzer-action="nudge-down" aria-label="Nudge down">▼</button>
+                    <button class="analyzer-arrow-button" type="button" data-analyzer-action="nudge-right" aria-label="Nudge right">▶</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="analyzer-native-controls" aria-hidden="true">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="analyzerSourceEyebrow">송수신 설정</p>
+                  <h2 data-i18n="analyzerSourceTitle">LOS 안테나</h2>
+                </div>
+
+                <label class="field">
+                  <span data-i18n="txAntennaLabel">송신 안테나</span>
+                  <select id="txAntennaSelect"></select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="rxAntennaLabel">수신 안테나</span>
+                  <select id="rxAntennaSelect"></select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="sourceProfileLabel">송신 소스</span>
+                  <select id="sourceProfileSelect"></select>
+                </label>
+
+                <div class="linked-value-card">
+                  <span class="linked-value-label" data-i18n="carrierLabel">송신 주파수</span>
+                  <strong id="carrierFreqOutput">-</strong>
+                </div>
+
+                <div class="linked-value-card">
+                  <span class="linked-value-label" data-i18n="txPowerLabel">송신 출력 (dBm)</span>
+                  <strong id="txPowerOutput">-</strong>
+                </div>
+
+                <button id="openGeneratorButton" class="ghost-button card-button" type="button" data-i18n="openGeneratorButton">
+                  시그널 제네레이터 열기
+                </button>
+
+                <label class="field">
+                  <span data-i18n="distanceLabel">LOS 거리 (m)</span>
+                  <input id="distanceInput" type="range" min="1" max="10" step="0.1" />
+                  <output id="distanceOutput"></output>
+                </label>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="shieldEyebrow">차폐 환경</p>
+                  <h2 data-i18n="shieldTitle">수신 안테나 차폐 상자</h2>
+                </div>
+
+                <label class="field field-inline">
+                  <span data-i18n="shieldEnabledLabel">차폐 상자 사용</span>
+                  <input id="shieldEnabledToggle" type="checkbox" />
+                </label>
+
+                <label class="field">
+                  <span data-i18n="shieldMaterialLabel">차폐 재질</span>
+                  <select id="shieldMaterialSelect"></select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="shieldEffectivenessLabel">기준 차폐 성능 (dB)</span>
+                  <input id="shieldEffectivenessInput" type="range" min="20" max="120" step="1" />
+                  <output id="shieldEffectivenessOutput"></output>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="shieldLeakageLabel">틈/개구 누설 (%)</span>
+                  <input id="shieldLeakageInput" type="range" min="0" max="80" step="1" />
+                  <output id="shieldLeakageOutput"></output>
+                </label>
+
+                <p class="field-note" data-i18n="shieldNote">
+                  기준값은 일반적으로 차폐 상자를 사용하지 않은 LOS 상태에서 먼저 저장합니다.
+                </p>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="analyzerSweepEyebrow">스윕 설정</p>
+                  <h2 data-i18n="analyzerSweepTitle">스펙트럼 분석기</h2>
+                </div>
+
+                <label class="field">
+                  <span data-i18n="centerFreqLabel">Center (MHz)</span>
+                  <input id="analyzerCenterInput" type="range" min="10" max="18000" step="1" />
+                  <output id="analyzerCenterOutput"></output>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="spanLabel">Span</span>
+                  <select id="analyzerSpanSelect">
+                    <option value="50">50 MHz</option>
+                    <option value="100">100 MHz</option>
+                    <option value="200">200 MHz</option>
+                    <option value="500">500 MHz</option>
+                    <option value="1000">1000 MHz</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="rbwLabel">RBW</span>
+                  <select id="analyzerRbwSelect">
+                    <option value="120">120 kHz</option>
+                    <option value="300">300 kHz</option>
+                    <option value="1000">1 MHz</option>
+                  </select>
+                </label>
+
+                <button id="autoTuneButton" class="ghost-button card-button" type="button" data-i18n="autoTuneButton">
+                  송신 주파수로 맞추기
+                </button>
+              </section>
+              </div>
+            </aside>
+
+            <section id="analyzerCheckPanel" class="panel analyzer-panel analyzer-screen-panel">
+              <div class="scope-toolbar analyzer-toolbar">
+                <div class="toolbar-group">
+                  <span class="toolbar-label" data-i18n="analyzerScreenModeLabel">스펙트럼</span>
+                  <span id="analyzerSweepReadout" class="inline-output"></span>
+                </div>
+
+                <div class="toolbar-group">
+                  <span class="toolbar-label" data-i18n="referenceStateLabel">Reference</span>
+                  <span id="baselineState" class="inline-output"></span>
+                </div>
+              </div>
+
+              <div class="scope-screen-shell analyzer-screen-shell">
+                <div class="analyzer-screen-readouts">
+                  <span class="analyzer-screen-readout" data-i18n="analyzerScreenStatusLabel">Level</span>
+                  <span class="analyzer-screen-readout" id="analyzerScaleDisplay">-</span>
+                </div>
+                <canvas id="analyzerCanvas" width="960" height="560"></canvas>
+                <div class="screen-overlay analyzer-overlay">
+                  <span id="analyzerOverlayScale"></span>
+                  <span id="analyzerOverlayBand"></span>
+                </div>
+                <div class="analyzer-softkeys" aria-label="Spectrum analyzer softkeys">
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="select-center" data-i18n="analyzerSoftkeyCenter">Center</button>
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="cycle-step" data-i18n="analyzerSoftkeyStep">CF StepSize</button>
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="select-ref" data-i18n="analyzerSoftkeyRef">Ref Level</button>
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="start-sweep" data-i18n="analyzerSoftkeyStart">Start</button>
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="stop-sweep" data-i18n="analyzerSoftkeyStop">Stop</button>
+                  <button class="analyzer-softkey" type="button" data-analyzer-action="toggle-track" data-i18n="analyzerSoftkeyTrack">Signal Track</button>
+                </div>
+              </div>
+            </section>
+
+            <aside id="analyzerReportRack" class="panel readout-panel analyzer-report-rack">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="analyzerResultEyebrow">분석 결과</p>
+                  <h2 data-i18n="analyzerResultTitle">주요 측정값</h2>
+                </div>
+
+                <dl class="metrics">
+                  <div class="metric-card">
+                    <dt data-i18n="peakFreqLabel">피크 주파수</dt>
+                    <dd id="analyzerMetricPeakFreq">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="peakLevelLabel">피크 레벨</dt>
+                    <dd id="analyzerMetricPeakLevel">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="deltaLabel">기준 대비</dt>
+                    <dd id="analyzerMetricDelta">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="shieldLossLabel">차폐 감쇠</dt>
+                    <dd id="analyzerMetricShieldLoss">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="pathLossLabel">경로 손실</dt>
+                    <dd id="analyzerMetricPathLoss">-</dd>
+                  </div>
+                  <div class="metric-card">
+                    <dt data-i18n="noiseFloorLabel">노이즈 플로어</dt>
+                    <dd id="analyzerMetricNoiseFloor">-</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="analyzerEnvEyebrow">환경 요약</p>
+                  <h2 data-i18n="analyzerEnvTitle">안테나 인식</h2>
+                </div>
+
+                <ul class="summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="summaryTxAntenna">송신 안테나</span>
+                    <strong id="summaryTxAntennaValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="summaryRxAntenna">수신 안테나</span>
+                    <strong id="summaryRxAntennaValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="summaryOverlap">공통 대역</span>
+                    <strong id="summaryOverlapValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="summaryCarrierBand">주파수 상태</span>
+                    <strong id="summaryCarrierBandValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="summaryShieldState">차폐 상태</span>
+                    <strong id="summaryShieldStateValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="summaryReference">기준값</span>
+                    <strong id="summaryReferenceValue">-</strong>
+                  </li>
+                </ul>
+
+                <p id="analyzerStatusNote" class="status-note"></p>
+              </section>
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="flowSummaryEyebrow">실험 요약</p>
+                  <h2 data-i18n="flowSummaryTitle">입력된 수치</h2>
+                </div>
+                <ul class="summary-list compact-summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryTx">송신 안테나</span>
+                    <strong data-flow-summary-value="tx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRx">수신 안테나</span>
+                    <strong data-flow-summary-value="rx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryPlacement">수신 위치</span>
+                    <strong data-flow-summary-value="placement">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryDistance">LOS 거리</span>
+                    <strong data-flow-summary-value="distance">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldMaterial">차폐 재질</span>
+                    <strong data-flow-summary-value="shieldMaterial">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldEffectiveness">차폐 성능</span>
+                    <strong data-flow-summary-value="shieldEffectiveness">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldLeakage">누설</span>
+                    <strong data-flow-summary-value="shieldLeakage">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorFreq">제네레이터 주파수</span>
+                    <strong data-flow-summary-value="generatorFreq">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorLevel">제네레이터 레벨</span>
+                    <strong data-flow-summary-value="generatorLevel">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorState">송신 상태</span>
+                    <strong data-flow-summary-value="generatorState">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryCenter">Center</span>
+                    <strong data-flow-summary-value="center">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummarySpan">Span</span>
+                    <strong data-flow-summary-value="span">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRbw">RBW</span>
+                    <strong data-flow-summary-value="rbw">-</strong>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="analyzerPracticeEyebrow">연습 과제</p>
+                  <h2 data-i18n="analyzerPracticeTitle">추천 연습</h2>
+                </div>
+                <ul class="task-list">
+                  <li data-i18n="analyzerHint1">바이코니컬 안테나를 선택하고 개방 LOS 상태에서 기준값을 먼저 저장하세요.</li>
+                  <li data-i18n="analyzerHint2">수신 안테나를 차폐 상자 안에 넣고 차폐 재질과 누설량을 바꾸며 delta를 비교하세요.</li>
+                  <li data-i18n="analyzerHint3">송신 주파수를 공통 대역 밖으로 이동시켜 안테나 인식 상태가 어떻게 바뀌는지 보세요.</li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section id="generatorView" class="view">
+          <section class="panel instrument-banner">
+            <div>
+              <p class="eyebrow" data-i18n="generatorEyebrow">보조 측정 장비</p>
+              <h2 data-i18n="generatorTitle">시그널 제네레이터</h2>
+              <p class="instrument-copy" data-i18n="generatorDescription">
+                송신 주파수와 출력 레벨을 발생기처럼 설정하고, 차폐 실험 송신원과 바로 연결하세요.
+              </p>
+            </div>
+
+            <div class="status-cluster">
+              <div class="status-pill">
+                <span class="status-dot" id="generatorOutputDot"></span>
+                <span id="generatorOutputState">발사 대기</span>
+              </div>
+              <button id="generatorFireButton" class="primary-button" type="button" data-i18n="generatorFireButton">발사!</button>
+              <button id="generatorOutputToggle" class="ghost-button" type="button" data-i18n="generatorStopButton">정지</button>
+            </div>
+          </section>
+
+          <div class="layout generator-layout">
+            <aside class="panel controls-panel">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="generatorFreqEyebrow">주파수</p>
+                  <h2 data-i18n="generatorFreqTitle">Frequency</h2>
+                </div>
+
+                <label class="field">
+                  <span data-i18n="generatorValueLabel">입력 값</span>
+                  <input id="generatorFrequencyInput" type="number" min="0.001" max="18000000000" step="any" />
+                </label>
+
+                <div class="unit-switch" role="group" aria-label="Frequency unit">
+                  <button class="unit-button" type="button" data-generator-unit="hz">Hz</button>
+                  <button class="unit-button" type="button" data-generator-unit="khz">kHz</button>
+                  <button class="unit-button" type="button" data-generator-unit="mhz">MHz</button>
+                  <button class="unit-button" type="button" data-generator-unit="ghz">GHz</button>
+                </div>
+
+                <p class="field-note" data-i18n="generatorFreqNote">
+                  선택한 단위 기준으로 값이 저장되고, 차폐 실험 송신 주파수로 즉시 반영됩니다.
+                </p>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="generatorLevelEyebrow">레벨</p>
+                  <h2 data-i18n="generatorLevelTitle">Level</h2>
+                </div>
+
+                <button id="generatorLevelButton" class="primary-button card-button" type="button">LEVEL</button>
+
+                <label class="field">
+                  <span data-i18n="generatorLevelInputLabel">출력 레벨 (dBm)</span>
+                  <input id="generatorLevelInput" type="number" min="-120" max="30" step="0.1" />
+                </label>
+
+                <div class="level-step-row">
+                  <button class="ghost-button" type="button" data-level-step="-10">-10 dB</button>
+                  <button class="ghost-button" type="button" data-level-step="-1">-1 dB</button>
+                  <button class="ghost-button" type="button" data-level-step="1">+1 dB</button>
+                  <button class="ghost-button" type="button" data-level-step="10">+10 dB</button>
+                </div>
+
+                <p class="field-note" data-i18n="generatorLevelNote">
+                  LEVEL 버튼을 누르면 레벨 입력 칸이 활성화되고, dBm 기준으로 바로 송신 출력에 연동됩니다.
+                </p>
+              </section>
+            </aside>
+
+            <section class="panel generator-panel">
+              <div class="panel-section generator-console-shell">
+                <div class="generator-console">
+                  <div class="generator-console-top">
+                    <span class="generator-console-brand">RF SIGNAL GENERATOR</span>
+                    <span id="generatorConsoleMode" class="generator-console-mode">FREQ</span>
+                  </div>
+
+                  <div class="generator-display">
+                    <div class="generator-display-row">
+                      <span class="generator-display-label">FREQ</span>
+                      <strong id="generatorFrequencyDisplay">120.000 MHz</strong>
+                    </div>
+                    <div class="generator-display-row">
+                      <span class="generator-display-label">LEVEL</span>
+                      <strong id="generatorLevelDisplay">10.0 dBm</strong>
+                    </div>
+                    <div class="generator-display-meta">
+                      <div class="generator-meta-card">
+                        <span data-i18n="generatorUnitMeta">단위</span>
+                        <strong id="generatorUnitDisplay">MHz</strong>
+                      </div>
+                      <div class="generator-meta-card">
+                        <span data-i18n="generatorLinkMeta">실험 연동</span>
+                        <strong id="generatorLinkDisplay">120.0 MHz / 10.0 dBm</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="panel readout-panel">
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="generatorSummaryEyebrow">연동 상태</p>
+                  <h2 data-i18n="generatorSummaryTitle">송신 요약</h2>
+                </div>
+
+                <ul class="summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="generatorSummaryFreq">발생기 주파수</span>
+                    <strong id="generatorSummaryFreqValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="generatorSummaryLevel">발생기 레벨</span>
+                    <strong id="generatorSummaryLevelValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="generatorSummaryOutput">RF 출력</span>
+                    <strong id="generatorSummaryOutputValue">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="generatorSummaryAnalyzer">Analyzer 반영값</span>
+                    <strong id="generatorSummaryAnalyzerValue">-</strong>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="flowSummaryEyebrow">실험 요약</p>
+                  <h2 data-i18n="flowSummaryTitle">입력된 수치</h2>
+                </div>
+                <ul class="summary-list compact-summary-list">
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryTx">송신 안테나</span>
+                    <strong data-flow-summary-value="tx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRx">수신 안테나</span>
+                    <strong data-flow-summary-value="rx">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryPlacement">수신 위치</span>
+                    <strong data-flow-summary-value="placement">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryDistance">LOS 거리</span>
+                    <strong data-flow-summary-value="distance">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldMaterial">차폐 재질</span>
+                    <strong data-flow-summary-value="shieldMaterial">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldEffectiveness">차폐 성능</span>
+                    <strong data-flow-summary-value="shieldEffectiveness">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryShieldLeakage">누설</span>
+                    <strong data-flow-summary-value="shieldLeakage">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorFreq">제네레이터 주파수</span>
+                    <strong data-flow-summary-value="generatorFreq">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorLevel">제네레이터 레벨</span>
+                    <strong data-flow-summary-value="generatorLevel">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryGeneratorState">송신 상태</span>
+                    <strong data-flow-summary-value="generatorState">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryCenter">Center</span>
+                    <strong data-flow-summary-value="center">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummarySpan">Span</span>
+                    <strong data-flow-summary-value="span">-</strong>
+                  </li>
+                  <li class="summary-row">
+                    <span data-i18n="flowSummaryRbw">RBW</span>
+                    <strong data-flow-summary-value="rbw">-</strong>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="panel-section">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="generatorHintEyebrow">사용 팁</p>
+                  <h2 data-i18n="generatorHintTitle">추천 흐름</h2>
+                </div>
+                <ul class="task-list">
+                  <li data-i18n="generatorHint1">Frequency 값을 넣고 단위를 바꿔 원하는 송신 주파수를 맞추세요.</li>
+                  <li data-i18n="generatorHint2">LEVEL 버튼을 누른 뒤 dBm 값을 조정해 수신 레벨 변화를 비교하세요.</li>
+                  <li data-i18n="generatorHint3">RF 출력을 끄면 analyzer에는 거의 노이즈 플로어만 남도록 설정됩니다.</li>
+                </ul>
+                <div class="workflow-action-row">
+                  <button id="generatorToAntennaButton" class="ghost-button" type="button" data-i18n="generatorToAntennaButton">
+                    안테나 설정 보기
+                  </button>
+                  <button id="generatorToAnalyzerButton" class="primary-button" type="button" data-i18n="generatorToAnalyzerButton">
+                    애널라이저 확인하기
+                  </button>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section id="manualView" class="view">
+          <section class="panel manual-hero">
+            <div class="panel-section">
+              <p class="eyebrow" data-i18n="manualEyebrow">사용설명서</p>
+              <h2 data-i18n="manualTitle">전자파 시험 시뮬레이터 사용설명서</h2>
+              <p class="manual-lead" data-i18n="manualLead">
+                실제 장비를 만지기 전에 차폐 실험 흐름과 보조 측정 장비 사용 순서를 먼저 익힐 수 있도록 정리한 안내입니다.
+              </p>
+            </div>
+          </section>
+
+          <section class="manual-grid">
+            <article class="panel manual-card">
+              <div class="panel-section">
+                <h3 data-i18n="manualStartTitle">1. 빠른 시작</h3>
+                <ol class="manual-list">
+                  <li data-i18n="manualStart1">홈 화면에서 차폐 실험으로 진입하고, 필요하면 상단 메뉴에서 오실로스코프와 스펙트럼 분석기를 보조 도구로 사용합니다.</li>
+                  <li data-i18n="manualStart2">오실로스코프에서는 예시 시료와 파형 조건을 바꾸며 파형 표시를 연습합니다.</li>
+                  <li data-i18n="manualStart3">스펙트럼 분석기에서는 LOS 안테나와 송신 조건을 정한 뒤 기준값을 저장합니다.</li>
+                  <li data-i18n="manualStart4">그 다음 수신 안테나를 가상 차폐 상자에 넣고 기준 대비 감쇠를 비교합니다.</li>
+                </ol>
+              </div>
+            </article>
+
+            <article class="panel manual-card">
+              <div class="panel-section">
+                <h3 data-i18n="manualScopeTitle">2. 오실로스코프</h3>
+                <ul class="manual-list">
+                  <li data-i18n="manualScope1">왼쪽 패널에서 시료, 파형, 진폭, 주파수, 오프셋, 노이즈를 바꿉니다.</li>
+                  <li data-i18n="manualScope2">가운데 화면에서 Time/div와 트리거를 조절하며 파형을 안정적으로 맞춥니다.</li>
+                  <li data-i18n="manualScope3">오른쪽 패널에서 Vpp, Vrms, 주파수, 평균값을 확인합니다.</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="panel manual-card">
+              <div class="panel-section">
+                <h3 data-i18n="manualAnalyzerTitle">3. 스펙트럼 분석기</h3>
+                <ul class="manual-list">
+                  <li data-i18n="manualAnalyzer1">송신 안테나와 수신 안테나를 선택하면 각 안테나의 사용 대역이 자동으로 인식됩니다.</li>
+                  <li data-i18n="manualAnalyzer2">예를 들어 바이코니컬 안테나는 20 MHz ~ 200 MHz 대역으로 표시됩니다.</li>
+                  <li data-i18n="manualAnalyzer3">송신 주파수가 공통 대역 안에 있으면 스펙트럼 피크가 강하게 보이고, 대역 밖이면 감쇠와 경고가 반영됩니다.</li>
+                  <li data-i18n="manualAnalyzer4">기준값 저장 후 차폐 상자를 켜면 기준 트레이스와 현재 트레이스가 함께 표시됩니다.</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="panel manual-card">
+              <div class="panel-section">
+                <h3 data-i18n="manualShieldTitle">4. 차폐 시뮬레이션</h3>
+                <ul class="manual-list">
+                  <li data-i18n="manualShield1">차폐 재질, 기준 차폐 성능, 틈/개구 누설량을 바꿔 감쇠량 변화를 볼 수 있습니다.</li>
+                  <li data-i18n="manualShield2">기준값은 보통 개방 LOS 상태에서 저장하고, 이후 차폐 상태와 비교합니다.</li>
+                  <li data-i18n="manualShield3">차폐 감쇠, 경로 손실, 기준 대비 delta를 함께 읽으며 비교 습관을 들이세요.</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="panel manual-card manual-card-wide">
+              <div class="panel-section">
+                <h3 data-i18n="manualNotesTitle">5. 참고</h3>
+                <ul class="manual-list">
+                  <li data-i18n="manualNotes1">이 시뮬레이터는 학습용이므로 실제 장비의 모든 메뉴와 보정 동작을 그대로 재현하지는 않습니다.</li>
+                  <li data-i18n="manualNotes2">다음 단계에서는 PCI 실험과 차폐 실험 preset 저장 기능을 붙이면 흐름이 더 완성됩니다.</li>
+                </ul>
+              </div>
+            </article>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="sim-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
