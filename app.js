@@ -69,6 +69,7 @@ const state = {
     markerFreqMHz: null,
     signalTrackEnabled: false,
     tuningStepMHz: 5,
+    lastSweepTime: 0,
     referenceSnapshot: null,
     latestTrace: null,
     latestReferenceTrace: null,
@@ -433,11 +434,15 @@ function cycleAnalyzerStep() {
 
 function toggleAnalyzerSweep(forceState = null) {
   state.analyzer.sweepRunning = typeof forceState === "boolean" ? forceState : !state.analyzer.sweepRunning;
-  if (state.analyzer.sweepRunning) markAnalyzerDirty();
+  if (state.analyzer.sweepRunning) {
+    state.analyzer.lastSweepTime = 0;
+    markAnalyzerDirty();
+  }
   syncAnalyzerOutputs();
 }
 
 function toggleAnalyzerReferenceOverlay() {
+  if (!state.analyzer.referenceSnapshot) return;
   state.analyzer.showReferenceTrace = !state.analyzer.showReferenceTrace;
   state.render.analyzerCanvasDirty = true;
   syncAnalyzerOutputs();
@@ -502,6 +507,17 @@ function syncAnalyzerConsoleOutputs() {
       (analyzerAction === "toggle-marker" && state.analyzer.markerEnabled) ||
       (analyzerAction === "toggle-track" && state.analyzer.signalTrackEnabled);
     button.classList.toggle("is-active", isActive);
+    if (analyzerAction === "toggle-reference" || analyzerAction === "clear-baseline") {
+      button.disabled = !state.analyzer.referenceSnapshot;
+    } else if (analyzerAction === "start-sweep") {
+      button.disabled = state.analyzer.sweepRunning;
+    } else if (analyzerAction === "stop-sweep") {
+      button.disabled = !state.analyzer.sweepRunning;
+    } else if (analyzerAction === "clear-entry" || analyzerAction === "backspace-entry" || analyzerAction === "enter-entry") {
+      button.disabled = !state.analyzerConsole.entryBuffer;
+    } else if (!button.classList.contains("analyzer-hardkey-disabled")) {
+      button.disabled = false;
+    }
   });
   elements.analyzerUnitButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.analyzerUnit === state.analyzerConsole.entryUnit));
 }
@@ -549,6 +565,7 @@ function handleAnalyzerAction(action) {
     state.analyzer.latestReferenceTrace = state.analyzer.sweepRunning
       ? buildAnalyzerTrace(state.analyzer.referenceSnapshot)
       : state.analyzer.latestTrace;
+    state.analyzer.showReferenceTrace = true;
     state.render.analyzerCanvasDirty = true;
     syncAnalyzerOutputs();
     return;
@@ -556,6 +573,7 @@ function handleAnalyzerAction(action) {
   if (action === "clear-baseline") {
     state.analyzer.referenceSnapshot = null;
     state.analyzer.latestReferenceTrace = null;
+    state.analyzer.showReferenceTrace = false;
     state.render.analyzerCanvasDirty = true;
     syncAnalyzerOutputs();
     return;
@@ -1199,7 +1217,10 @@ function buildAnalyzerTrace(snapshot) {
 function computeAnalyzerState() {
   syncAnalyzerFromGenerator();
   if (!state.analyzer.sweepRunning && state.analyzer.latestTrace) {
-    state.analyzer.latestReferenceTrace = state.analyzer.referenceSnapshot ? buildAnalyzerTrace(state.analyzer.referenceSnapshot) : null;
+    if (state.analyzer.referenceSnapshot && !state.analyzer.latestReferenceTrace) {
+      state.analyzer.latestReferenceTrace = buildAnalyzerTrace(state.analyzer.referenceSnapshot);
+    }
+    if (!state.analyzer.referenceSnapshot) state.analyzer.latestReferenceTrace = null;
     state.render.analyzerStateDirty = false;
     return { trace: state.analyzer.latestTrace, ref: state.analyzer.latestReferenceTrace };
   }
@@ -1207,7 +1228,9 @@ function computeAnalyzerState() {
     return { trace: state.analyzer.latestTrace, ref: state.analyzer.latestReferenceTrace };
   }
   const trace = buildAnalyzerTrace(analyzerSnapshot());
-  const ref = state.analyzer.referenceSnapshot ? buildAnalyzerTrace(state.analyzer.referenceSnapshot) : null;
+  const ref = state.analyzer.referenceSnapshot
+    ? state.analyzer.latestReferenceTrace || buildAnalyzerTrace(state.analyzer.referenceSnapshot)
+    : null;
   state.analyzer.latestTrace = trace;
   state.analyzer.latestReferenceTrace = ref;
   state.render.analyzerStateDirty = false;
@@ -1315,6 +1338,7 @@ function syncAnalyzerOutputs() {
   elements.baselineState.textContent = state.analyzer.referenceSnapshot
     ? `${tx("baselineStored")} / ${state.analyzer.showReferenceTrace ? tx("referenceVisible") : tx("referenceHidden")}`
     : tx("baselineEmpty");
+  if (elements.clearBaselineButton) elements.clearBaselineButton.disabled = !state.analyzer.referenceSnapshot;
   elements.analyzerScaleDisplay.textContent = `Ref ${fmtDbm(state.analyzer.refLevelDbm)} | ${state.analyzer.dbPerDiv.toFixed(0)} dB/div`;
   elements.analyzerOverlayScale.textContent = `Center ${fmtMHz(state.analyzer.centerMHz)} | Span ${fmtMHz(state.analyzer.spanMHz)} | Ref ${fmtDbm(state.analyzer.refLevelDbm)}`;
   elements.analyzerOverlayBand.textContent = trace.overlap ? `Band ${fmtMHz(trace.overlap.start)} ~ ${fmtMHz(trace.overlap.stop)}` : tx("summaryCarrierNoOverlap");
@@ -1514,7 +1538,14 @@ function frame(timestamp) {
   } else {
     state.scope.lastFrameTime = timestamp;
   }
-  if (state.activeView === "analyzer" && state.render.analyzerCanvasDirty) renderAnalyzer();
+  if (state.activeView === "analyzer") {
+    if (state.analyzer.sweepRunning && timestamp - state.analyzer.lastSweepTime >= 140) {
+      state.analyzer.lastSweepTime = timestamp;
+      state.render.analyzerStateDirty = true;
+      state.render.analyzerCanvasDirty = true;
+    }
+    if (state.render.analyzerCanvasDirty) renderAnalyzer();
+  }
   requestAnimationFrame(frame);
 }
 
