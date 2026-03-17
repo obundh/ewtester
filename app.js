@@ -6,7 +6,6 @@ const scopeDivisions = { horizontal: 10, vertical: 8 };
 const generatorUnitScale = { hz: 1, khz: 1000, mhz: 1000000, ghz: 1000000000 };
 const generatorUnitLabel = { hz: "Hz", khz: "kHz", mhz: "MHz", ghz: "GHz" };
 const koreanStaticText = window.SIM_DATA.koreanStaticText || {};
-const analyzerSpanOptions = [50, 100, 200, 500, 1000];
 const analyzerRbwOptions = [120, 300, 1000];
 const analyzerScaleOptions = [5, 10, 20];
 const analyzerTuningSteps = [1, 5, 10, 50];
@@ -416,7 +415,10 @@ function commitAnalyzerEntry(unitOverride = null) {
 function nudgeAnalyzerTarget(direction) {
   const target = state.analyzerConsole.editTarget;
   if (target === "center") setAnalyzerCenter(state.analyzer.centerMHz + state.analyzer.tuningStepMHz * direction);
-  else if (target === "span") setAnalyzerSpan(state.analyzer.spanMHz + 50 * direction);
+  else if (target === "span") {
+    const spanStepMHz = state.analyzer.spanMHz >= 10 ? 10 : state.analyzer.spanMHz >= 1 ? 1 : state.analyzer.spanMHz >= 0.1 ? 0.1 : state.analyzer.spanMHz >= 0.01 ? 0.01 : 0.001;
+    setAnalyzerSpan(state.analyzer.spanMHz + spanStepMHz * direction);
+  }
   else if (target === "rbw") {
     const index = analyzerRbwOptions.indexOf(state.analyzer.rbwKHz);
     const nextIndex = clamp(index + direction, 0, analyzerRbwOptions.length - 1);
@@ -657,7 +659,7 @@ function syncQuickSetupInputs() {
   if (elements.quickShieldEffectivenessInput) elements.quickShieldEffectivenessInput.value = state.analyzer.shieldEffectivenessDb.toFixed(0);
   if (elements.quickShieldLeakageInput) elements.quickShieldLeakageInput.value = state.analyzer.shieldLeakagePct.toFixed(0);
   if (elements.quickCenterInput) elements.quickCenterInput.value = state.analyzer.centerMHz.toFixed(0);
-  if (elements.quickSpanInput) elements.quickSpanInput.value = state.analyzer.spanMHz.toFixed(0);
+  if (elements.quickSpanInput) elements.quickSpanInput.value = state.analyzer.spanMHz >= 1 ? state.analyzer.spanMHz.toFixed(3).replace(/\.?0+$/, "") : state.analyzer.spanMHz.toFixed(6).replace(/\.?0+$/, "");
   if (elements.quickRbwInput) elements.quickRbwInput.value = state.analyzer.rbwKHz.toFixed(0);
 }
 
@@ -691,8 +693,7 @@ function setAnalyzerCenter(value) {
 
 function setAnalyzerSpan(value) {
   const nextValue = Number(value);
-  const clampedValue = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.spanMHz, analyzerSpanOptions[0], analyzerSpanOptions[analyzerSpanOptions.length - 1]);
-  state.analyzer.spanMHz = snapToOptions(clampedValue, analyzerSpanOptions);
+  state.analyzer.spanMHz = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.spanMHz, 0.001, 5000);
   markAnalyzerDirty();
   syncAnalyzerOutputs();
 }
