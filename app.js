@@ -6,7 +6,6 @@ const scopeDivisions = { horizontal: 10, vertical: 8 };
 const generatorUnitScale = { hz: 1, khz: 1000, mhz: 1000000, ghz: 1000000000 };
 const generatorUnitLabel = { hz: "Hz", khz: "kHz", mhz: "MHz", ghz: "GHz" };
 const koreanStaticText = window.SIM_DATA.koreanStaticText || {};
-const analyzerRbwOptions = [120, 300, 1000];
 const analyzerScaleOptions = [5, 10, 20];
 const analyzerTuningSteps = [1, 5, 10, 50];
 
@@ -77,6 +76,11 @@ const state = {
     editTarget: "center",
     entryBuffer: "",
     entryUnit: "mhz",
+    displayUnits: {
+      center: "mhz",
+      span: "mhz",
+      rbw: "khz",
+    },
   },
   generator: {
     frequencyValue: 120,
@@ -87,6 +91,7 @@ const state = {
     liveLevelDbm: 10,
     hasFired: false,
     editTarget: "freq",
+    entryBuffer: "",
   },
   render: {
     scopeCanvasDirty: true,
@@ -230,18 +235,24 @@ const elements = {
   analyzerUnitButtons: document.querySelectorAll("[data-analyzer-unit]"),
   generatorFrequencyInput: document.querySelector("#generatorFrequencyInput"),
   generatorLevelInput: document.querySelector("#generatorLevelInput"),
-  generatorLevelButton: document.querySelector("#generatorLevelButton"),
   generatorUnitButtons: document.querySelectorAll("[data-generator-unit]"),
   generatorLevelStepButtons: document.querySelectorAll("[data-level-step]"),
+  generatorActionButtons: document.querySelectorAll("[data-generator-action]"),
+  generatorKeypadButtons: document.querySelectorAll("[data-generator-keypad]"),
   generatorFireButton: document.querySelector("#generatorFireButton"),
   generatorOutputToggle: document.querySelector("#generatorOutputToggle"),
   generatorOutputDot: document.querySelector("#generatorOutputDot"),
   generatorOutputState: document.querySelector("#generatorOutputState"),
-  generatorFrequencyDisplay: document.querySelector("#generatorFrequencyDisplay"),
-  generatorLevelDisplay: document.querySelector("#generatorLevelDisplay"),
-  generatorUnitDisplay: document.querySelector("#generatorUnitDisplay"),
-  generatorLinkDisplay: document.querySelector("#generatorLinkDisplay"),
-  generatorConsoleMode: document.querySelector("#generatorConsoleMode"),
+  generatorPowerLed: document.querySelector(".generator-power-led"),
+  generatorFrequencyDisplay: document.querySelector("#generatorFrequencyDisplayHardware"),
+  generatorLevelDisplay: document.querySelector("#generatorLevelDisplayHardware"),
+  generatorUnitDisplay: document.querySelector("#generatorUnitDisplayHardware"),
+  generatorLinkDisplay: document.querySelector("#generatorLinkDisplayHardware"),
+  generatorConsoleMode: document.querySelector("#generatorConsoleModeHardware"),
+  generatorHardwareState: document.querySelector("#generatorHardwareState"),
+  generatorEntryTarget: document.querySelector("#generatorEntryTarget"),
+  generatorEntryBuffer: document.querySelector("#generatorEntryBuffer"),
+  generatorRfConsoleButton: document.querySelector("#generatorRfConsoleButton"),
   generatorSummaryFreqValue: document.querySelector("#generatorSummaryFreqValue"),
   generatorSummaryLevelValue: document.querySelector("#generatorSummaryLevelValue"),
   generatorSummaryOutputValue: document.querySelector("#generatorSummaryOutputValue"),
@@ -253,16 +264,23 @@ const elements = {
 const defaultStaticText = Object.fromEntries([...elements.translationNodes].map((node) => [node.dataset.i18n, node.textContent.trim()]));
 const scopeCtx = elements.scopeCanvas.getContext("2d");
 const analyzerCtx = elements.analyzerCanvas.getContext("2d");
+const analyzerWindowCache = new Map();
 
 const tx = (key) => uiText[state.language][key];
 const st = (key) => (state.language === "ko" ? koreanStaticText[key] || defaultStaticText[key] : englishStaticText[key] || defaultStaticText[key] || key);
-const fmtHz = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} kHz` : `${v.toFixed(1)} Hz`);
+const trimFixed = (value, digits) => value.toFixed(digits).replace(/\.?0+$/, "");
+const fmtHz = (v) => (v >= 1000 ? `${trimFixed(v / 1000, 3)} kHz` : `${trimFixed(v, 3)} Hz`);
 const fmtTime = (v) => (v < 0.001 ? `${(v * 1000000).toFixed(1)} us` : `${(v * 1000).toFixed(2)} ms`);
 const fmtV = (v) => `${v.toFixed(2)} V`;
 const fmtDbm = (v) => `${v.toFixed(1)} dBm`;
 const fmtDb = (v) => `${v.toFixed(1)} dB`;
 const fmtM = (v) => `${v.toFixed(1)} m`;
-const fmtMHz = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} GHz` : `${v.toFixed(1)} MHz`);
+const fmtMHz = (v) => {
+  if (v >= 1000) return `${trimFixed(v / 1000, 3)} GHz`;
+  if (v >= 1) return `${trimFixed(v, 3)} MHz`;
+  if (v >= 0.001) return `${trimFixed(v * 1000, 3)} kHz`;
+  return `${trimFixed(v * 1000000, 3)} Hz`;
+};
 const fmtRfFrequency = (frequencyHz) => {
   if (frequencyHz >= 1000000000) return `${(frequencyHz / 1000000000).toFixed(3)} GHz`;
   if (frequencyHz >= 1000000) return `${(frequencyHz / 1000000).toFixed(3)} MHz`;
@@ -285,6 +303,86 @@ const simNoise = (seed) => {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function dbmToWatts(dbm) {
+  return 10 ** ((dbm - 30) / 10);
+}
+
+function wattsToDbm(powerW) {
+  return 10 * Math.log10(Math.max(powerW, 1e-18)) + 30;
+}
+
+function nextPowerOfTwo(value) {
+  let size = 1;
+  while (size < value) size *= 2;
+  return size;
+}
+
+function hashUnit(seed) {
+  const x = Math.sin(seed * 12.9898 + state.animationTime * 1.913 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function getAnalyzerHannWindow(size) {
+  if (analyzerWindowCache.has(size)) return analyzerWindowCache.get(size);
+  const window = new Float64Array(size);
+  let coherentGain = 0;
+  let powerGain = 0;
+  for (let i = 0; i < size; i += 1) {
+    const weight = 0.5 - 0.5 * Math.cos((Math.PI * 2 * i) / Math.max(size - 1, 1));
+    window[i] = weight;
+    coherentGain += weight;
+    powerGain += weight * weight;
+  }
+  const coherentGainNormalized = coherentGain / size;
+  const enbwBins = (size * powerGain) / Math.max(coherentGain * coherentGain, 1e-12);
+  const cached = { window, coherentGain: coherentGainNormalized, enbwBins };
+  analyzerWindowCache.set(size, cached);
+  return cached;
+}
+
+function fftComplex(real, imag) {
+  const size = real.length;
+  let j = 0;
+  for (let i = 0; i < size; i += 1) {
+    if (i < j) {
+      const tempReal = real[i];
+      const tempImag = imag[i];
+      real[i] = real[j];
+      imag[i] = imag[j];
+      real[j] = tempReal;
+      imag[j] = tempImag;
+    }
+    let bit = size >> 1;
+    while (bit > 0 && j >= bit) {
+      j -= bit;
+      bit >>= 1;
+    }
+    j += bit;
+  }
+  for (let len = 2; len <= size; len <<= 1) {
+    const angle = (-2 * Math.PI) / len;
+    const wLenReal = Math.cos(angle);
+    const wLenImag = Math.sin(angle);
+    for (let start = 0; start < size; start += len) {
+      let wReal = 1;
+      let wImag = 0;
+      for (let offset = 0; offset < len / 2; offset += 1) {
+        const evenIndex = start + offset;
+        const oddIndex = evenIndex + len / 2;
+        const oddReal = real[oddIndex] * wReal - imag[oddIndex] * wImag;
+        const oddImag = real[oddIndex] * wImag + imag[oddIndex] * wReal;
+        real[oddIndex] = real[evenIndex] - oddReal;
+        imag[oddIndex] = imag[evenIndex] - oddImag;
+        real[evenIndex] += oddReal;
+        imag[evenIndex] += oddImag;
+        const nextWReal = wReal * wLenReal - wImag * wLenImag;
+        wImag = wReal * wLenImag + wImag * wLenReal;
+        wReal = nextWReal;
+      }
+    }
+  }
 }
 
 function snapToOptions(value, options) {
@@ -328,17 +426,33 @@ function analyzerTargetTextKey(target) {
   }[target] || "analyzerTargetCenter";
 }
 
+function formatValueInUnit(value, unit) {
+  if (unit === "ghz") return `${trimFixed(value / 1000, 6)} GHz`;
+  if (unit === "mhz") return `${trimFixed(value, 6)} MHz`;
+  if (unit === "khz") return `${trimFixed(value * 1000, 6)} kHz`;
+  if (unit === "hz") return `${trimFixed(value * 1000000, 6)} Hz`;
+  return `${trimFixed(value, 6)}`;
+}
+
+function formatBandwidthInUnit(valueKHz, unit) {
+  if (unit === "ghz") return `${trimFixed(valueKHz / 1000000, 6)} GHz`;
+  if (unit === "mhz") return `${trimFixed(valueKHz / 1000, 6)} MHz`;
+  if (unit === "khz") return `${trimFixed(valueKHz, 6)} kHz`;
+  if (unit === "hz") return `${trimFixed(valueKHz * 1000, 6)} Hz`;
+  return `${trimFixed(valueKHz, 6)} kHz`;
+}
+
 function formatAnalyzerTargetValue(target) {
-  if (target === "span") return fmtMHz(state.analyzer.spanMHz);
-  if (target === "rbw") return `${state.analyzer.rbwKHz.toFixed(0)} kHz`;
+  if (target === "span") return formatValueInUnit(state.analyzer.spanMHz, state.analyzerConsole.displayUnits.span || "mhz");
+  if (target === "rbw") return formatBandwidthInUnit(state.analyzer.rbwKHz, state.analyzerConsole.displayUnits.rbw || "khz");
   if (target === "ref") return fmtDbm(state.analyzer.refLevelDbm);
-  return fmtMHz(state.analyzer.centerMHz);
+  return formatValueInUnit(state.analyzer.centerMHz, state.analyzerConsole.displayUnits.center || "mhz");
 }
 
 function setAnalyzerConsoleTarget(target) {
   state.analyzerConsole.editTarget = target;
   state.analyzerConsole.entryBuffer = "";
-  state.analyzerConsole.entryUnit = defaultAnalyzerUnit(target);
+  state.analyzerConsole.entryUnit = state.analyzerConsole.displayUnits[target] || defaultAnalyzerUnit(target);
   syncAnalyzerConsoleOutputs();
 }
 
@@ -407,8 +521,9 @@ function commitAnalyzerEntry(unitOverride = null) {
   else if (target === "span") setAnalyzerSpan(nextValue);
   else if (target === "rbw") setAnalyzerRbw(nextValue);
   else if (target === "ref") setAnalyzerRefLevel(nextValue);
+  if (target !== "ref") state.analyzerConsole.displayUnits[target] = unit;
   state.analyzerConsole.entryBuffer = "";
-  state.analyzerConsole.entryUnit = defaultAnalyzerUnit(target);
+  state.analyzerConsole.entryUnit = target === "ref" ? defaultAnalyzerUnit(target) : state.analyzerConsole.displayUnits[target];
   syncAnalyzerConsoleOutputs();
 }
 
@@ -420,9 +535,8 @@ function nudgeAnalyzerTarget(direction) {
     setAnalyzerSpan(state.analyzer.spanMHz + spanStepMHz * direction);
   }
   else if (target === "rbw") {
-    const index = analyzerRbwOptions.indexOf(state.analyzer.rbwKHz);
-    const nextIndex = clamp(index + direction, 0, analyzerRbwOptions.length - 1);
-    setAnalyzerRbw(analyzerRbwOptions[nextIndex]);
+    const rbwStepKHz = state.analyzer.rbwKHz >= 1000 ? 1000 : state.analyzer.rbwKHz >= 100 ? 100 : state.analyzer.rbwKHz >= 10 ? 10 : state.analyzer.rbwKHz >= 1 ? 1 : state.analyzer.rbwKHz >= 0.1 ? 0.1 : 0.01;
+    setAnalyzerRbw(state.analyzer.rbwKHz + rbwStepKHz * direction);
   } else if (target === "ref") {
     setAnalyzerRefLevel(state.analyzer.refLevelDbm + state.analyzer.dbPerDiv * direction);
   }
@@ -643,13 +757,185 @@ function getLiveGeneratorFrequencyHz() {
   return Math.max(0.001, Number(state.generator.liveFrequencyHz) || 0.001);
 }
 
+function clampGeneratorHz(valueHz) {
+  return clamp(Number.isFinite(valueHz) ? valueHz : getGeneratorFrequencyHz(), 0.001, 18000000000);
+}
+
+function setGeneratorFrequencyFromHz(valueHz, unit = state.generator.frequencyUnit) {
+  const nextUnit = generatorUnitScale[unit] ? unit : state.generator.frequencyUnit;
+  const nextHz = clampGeneratorHz(valueHz);
+  state.generator.frequencyUnit = nextUnit;
+  state.generator.frequencyValue = nextHz / generatorUnitScale[nextUnit];
+}
+
+function generatorTargetTextKey(target) {
+  return target === "level" ? "generatorTargetLevel" : "generatorTargetFreq";
+}
+
+function formatGeneratorConsoleEntry() {
+  if (state.generator.entryBuffer) {
+    return state.generator.editTarget === "level"
+      ? `${state.generator.entryBuffer} dBm`
+      : `${state.generator.entryBuffer} ${generatorUnitLabel[state.generator.frequencyUnit]}`;
+  }
+  return state.generator.editTarget === "level"
+    ? fmtDbm(state.generator.levelDbm)
+    : `${fmtGeneratorValue(state.generator.frequencyValue)} ${generatorUnitLabel[state.generator.frequencyUnit]}`;
+}
+
+function setGeneratorEditTarget(target) {
+  const nextTarget = target === "level" ? "level" : "freq";
+  if (state.generator.editTarget !== nextTarget) state.generator.entryBuffer = "";
+  state.generator.editTarget = nextTarget;
+  syncGeneratorOutputs();
+}
+
+function appendGeneratorEntry(token) {
+  if (token === "." && state.generator.entryBuffer.includes(".")) return;
+  if (token === "-") {
+    if (state.generator.editTarget !== "level" || state.generator.entryBuffer.includes("-") || state.generator.entryBuffer.length > 0) return;
+  }
+  state.generator.entryBuffer += token;
+  syncGeneratorOutputs();
+}
+
+function clearGeneratorEntry() {
+  if (!state.generator.entryBuffer) return;
+  state.generator.entryBuffer = "";
+  syncGeneratorOutputs();
+}
+
+function backspaceGeneratorEntry() {
+  if (!state.generator.entryBuffer) return;
+  state.generator.entryBuffer = state.generator.entryBuffer.slice(0, -1);
+  syncGeneratorOutputs();
+}
+
+function commitGeneratorEntry(unitOverride = null) {
+  if (!state.generator.entryBuffer) {
+    if (unitOverride && state.generator.editTarget === "freq") setGeneratorFrequencyFromHz(getGeneratorFrequencyHz(), unitOverride);
+    syncGeneratorOutputs();
+    return;
+  }
+  const raw = Number(state.generator.entryBuffer);
+  if (!Number.isFinite(raw)) {
+    state.generator.entryBuffer = "";
+    syncGeneratorOutputs();
+    return;
+  }
+  if (state.generator.editTarget === "freq") {
+    const unit = unitOverride || state.generator.frequencyUnit;
+    setGeneratorFrequencyFromHz(raw * generatorUnitScale[unit], unit);
+  } else {
+    state.generator.levelDbm = clamp(raw, -120, 30);
+  }
+  state.generator.entryBuffer = "";
+  syncGeneratorOutputs();
+}
+
+function setGeneratorFrequencyUnit(unit) {
+  if (!generatorUnitScale[unit]) return;
+  state.generator.editTarget = "freq";
+  if (state.generator.entryBuffer) {
+    commitGeneratorEntry(unit);
+    return;
+  }
+  setGeneratorFrequencyFromHz(getGeneratorFrequencyHz(), unit);
+  syncGeneratorOutputs();
+}
+
+function nudgeGeneratorTarget(direction) {
+  if (state.generator.editTarget === "freq") {
+    const baseHz = state.generator.entryBuffer
+      ? clampGeneratorHz((Number(state.generator.entryBuffer) || 0) * generatorUnitScale[state.generator.frequencyUnit])
+      : getGeneratorFrequencyHz();
+    setGeneratorFrequencyFromHz(baseHz + direction * generatorUnitScale[state.generator.frequencyUnit], state.generator.frequencyUnit);
+  } else {
+    const baseLevel = state.generator.entryBuffer ? Number(state.generator.entryBuffer) : state.generator.levelDbm;
+    state.generator.levelDbm = clamp(Number.isFinite(baseLevel) ? baseLevel + direction : state.generator.levelDbm, -120, 30);
+  }
+  state.generator.entryBuffer = "";
+  syncGeneratorOutputs();
+}
+
+function syncGeneratorConsoleOutputs() {
+  if (elements.generatorEntryTarget) elements.generatorEntryTarget.textContent = st(generatorTargetTextKey(state.generator.editTarget));
+  if (elements.generatorEntryBuffer) elements.generatorEntryBuffer.textContent = formatGeneratorConsoleEntry();
+  if (elements.generatorHardwareState) {
+    elements.generatorHardwareState.textContent = state.generator.outputEnabled ? tx("generatorOutputOn") : tx("generatorOutputOff");
+    elements.generatorHardwareState.classList.toggle("is-live", state.generator.outputEnabled);
+  }
+  elements.generatorActionButtons.forEach((button) => {
+    const action = button.dataset.generatorAction;
+    const isTargetButton = (action === "select-freq" && state.generator.editTarget === "freq")
+      || (action === "select-level" && state.generator.editTarget === "level");
+    const isLiveButton = action === "rf-toggle" && state.generator.outputEnabled;
+    const isDisabled = (action === "backspace-entry" || action === "clear-entry" || action === "enter-entry") && !state.generator.entryBuffer;
+    button.classList.toggle("is-active", isTargetButton || isLiveButton || (action === "commit-level" && state.generator.editTarget === "level"));
+    button.disabled = isDisabled;
+  });
+}
+
+function handleGeneratorAction(action) {
+  if (!action) return;
+  if (action === "select-freq") {
+    setGeneratorEditTarget("freq");
+    return;
+  }
+  if (action === "select-level") {
+    setGeneratorEditTarget("level");
+    return;
+  }
+  if (action === "rf-toggle") {
+    if (state.generator.outputEnabled) stopGenerator();
+    else fireGenerator();
+    return;
+  }
+  if (action === "backspace-entry") {
+    backspaceGeneratorEntry();
+    return;
+  }
+  if (action === "clear-entry") {
+    clearGeneratorEntry();
+    return;
+  }
+  if (action === "enter-entry") {
+    commitGeneratorEntry();
+    return;
+  }
+  if (action === "commit-level") {
+    state.generator.editTarget = "level";
+    commitGeneratorEntry();
+    return;
+  }
+  if (action === "open-manual") {
+    setActiveView("manual");
+    return;
+  }
+  if (action === "open-shield-setup") {
+    setActiveView("shieldSetup");
+    focusPanel(elements.quickSetupPanel);
+    return;
+  }
+  if (action === "open-analyzer") {
+    setActiveView("analyzer");
+    focusPanel(elements.analyzerCheckPanel);
+    return;
+  }
+  if (action === "nudge-up" || action === "nudge-right") {
+    nudgeGeneratorTarget(1);
+    return;
+  }
+  if (action === "nudge-down" || action === "nudge-left") nudgeGeneratorTarget(-1);
+}
+
 function syncAnalyzerFromGenerator() {
   const nextCarrierMHz = getLiveGeneratorFrequencyHz() / 1000000;
   const nextTxPowerDbm = state.generator.liveLevelDbm;
   if (state.analyzer.carrierMHz !== nextCarrierMHz || state.analyzer.txPowerDbm !== nextTxPowerDbm) {
     state.analyzer.carrierMHz = nextCarrierMHz;
     state.analyzer.txPowerDbm = nextTxPowerDbm;
-    if (state.analyzer.signalTrackEnabled) state.analyzer.centerMHz = clamp(nextCarrierMHz, 10, 18000);
+    if (state.analyzer.signalTrackEnabled) state.analyzer.centerMHz = clamp(nextCarrierMHz, 0.001, 18000);
     markAnalyzerDirty();
   }
 }
@@ -658,9 +944,9 @@ function syncQuickSetupInputs() {
   if (elements.quickDistanceInput) elements.quickDistanceInput.value = state.analyzer.distanceM.toFixed(1);
   if (elements.quickShieldEffectivenessInput) elements.quickShieldEffectivenessInput.value = state.analyzer.shieldEffectivenessDb.toFixed(0);
   if (elements.quickShieldLeakageInput) elements.quickShieldLeakageInput.value = state.analyzer.shieldLeakagePct.toFixed(0);
-  if (elements.quickCenterInput) elements.quickCenterInput.value = state.analyzer.centerMHz.toFixed(0);
+  if (elements.quickCenterInput) elements.quickCenterInput.value = state.analyzer.centerMHz >= 1 ? trimFixed(state.analyzer.centerMHz, 6) : trimFixed(state.analyzer.centerMHz, 9);
   if (elements.quickSpanInput) elements.quickSpanInput.value = state.analyzer.spanMHz >= 1 ? state.analyzer.spanMHz.toFixed(3).replace(/\.?0+$/, "") : state.analyzer.spanMHz.toFixed(6).replace(/\.?0+$/, "");
-  if (elements.quickRbwInput) elements.quickRbwInput.value = state.analyzer.rbwKHz.toFixed(0);
+  if (elements.quickRbwInput) elements.quickRbwInput.value = state.analyzer.rbwKHz >= 1 ? trimFixed(state.analyzer.rbwKHz, 6) : trimFixed(state.analyzer.rbwKHz, 9);
 }
 
 function setAnalyzerDistance(value) {
@@ -686,7 +972,7 @@ function setShieldLeakage(value) {
 
 function setAnalyzerCenter(value) {
   const nextValue = Number(value);
-  state.analyzer.centerMHz = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.centerMHz, 10, 18000);
+  state.analyzer.centerMHz = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.centerMHz, 0.001, 18000);
   markAnalyzerDirty();
   syncAnalyzerOutputs();
 }
@@ -700,13 +986,13 @@ function setAnalyzerSpan(value) {
 
 function setAnalyzerRbw(value) {
   const nextValue = Number(value);
-  const clampedValue = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.rbwKHz, analyzerRbwOptions[0], analyzerRbwOptions[analyzerRbwOptions.length - 1]);
-  state.analyzer.rbwKHz = snapToOptions(clampedValue, analyzerRbwOptions);
+  state.analyzer.rbwKHz = clamp(Number.isFinite(nextValue) ? nextValue : state.analyzer.rbwKHz, 0.001, 5000);
   markAnalyzerDirty();
   syncAnalyzerOutputs();
 }
 
 function fireGenerator() {
+  if (state.generator.entryBuffer) commitGeneratorEntry();
   state.generator.liveFrequencyHz = getGeneratorFrequencyHz();
   state.generator.liveLevelDbm = state.generator.levelDbm;
   state.generator.outputEnabled = true;
@@ -846,7 +1132,10 @@ function syncGeneratorOutputs() {
     : tx("generatorPendingFeed");
   if (elements.generatorFrequencyInput) elements.generatorFrequencyInput.value = String(state.generator.frequencyValue);
   if (elements.generatorLevelInput) elements.generatorLevelInput.value = state.generator.levelDbm.toFixed(1);
-  elements.generatorUnitButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.generatorUnit === state.generator.frequencyUnit));
+  elements.generatorUnitButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.generatorUnit === state.generator.frequencyUnit && state.generator.editTarget === "freq");
+    button.disabled = state.generator.editTarget !== "freq";
+  });
   if (elements.generatorFrequencyDisplay) elements.generatorFrequencyDisplay.textContent = frequencyLabel;
   if (elements.generatorLevelDisplay) elements.generatorLevelDisplay.textContent = fmtDbm(state.generator.levelDbm);
   if (elements.generatorUnitDisplay) elements.generatorUnitDisplay.textContent = generatorUnitLabel[state.generator.frequencyUnit];
@@ -860,7 +1149,10 @@ function syncGeneratorOutputs() {
   if (elements.generatorOutputToggle) elements.generatorOutputToggle.disabled = !state.generator.outputEnabled;
   if (elements.generatorFireButton) elements.generatorFireButton.classList.toggle("is-active", state.generator.outputEnabled);
   elements.generatorOutputDot?.classList.toggle("paused", !state.generator.outputEnabled);
-  elements.generatorLevelButton?.classList.toggle("is-active", state.generator.editTarget === "level");
+  elements.generatorRfConsoleButton?.classList.toggle("is-active", state.generator.outputEnabled);
+  elements.generatorHardwareState?.classList.toggle("is-live", state.generator.outputEnabled);
+  elements.generatorPowerLed?.classList.toggle("paused", !state.generator.outputEnabled);
+  syncGeneratorConsoleOutputs();
   syncFlowSummaryPanels();
 }
 
@@ -965,9 +1257,9 @@ function navigateFromFlowSummary(key) {
     shieldMaterial: { view: "analyzer", node: elements.analyzerReportRack },
     shieldEffectiveness: { view: "shieldSetup", node: elements.quickShieldEffectivenessInput },
     shieldLeakage: { view: "shieldSetup", node: elements.quickShieldLeakageInput },
-    generatorFreq: { view: "generator", node: elements.generatorFrequencyInput },
-    generatorLevel: { view: "generator", node: elements.generatorLevelInput },
-    generatorState: { view: "generator", node: elements.generatorFireButton },
+    generatorFreq: { view: "generator", node: elements.generatorEntryBuffer },
+    generatorLevel: { view: "generator", node: elements.generatorEntryBuffer },
+    generatorState: { view: "generator", node: elements.generatorRfConsoleButton || elements.generatorFireButton },
     center: { view: "shieldSetup", node: elements.quickCenterInput },
     span: { view: "shieldSetup", node: elements.quickSpanInput },
     rbw: { view: "shieldSetup", node: elements.quickRbwInput },
@@ -975,6 +1267,8 @@ function navigateFromFlowSummary(key) {
   const target = targetMap[key];
   if (!target) return;
   setActiveView(target.view);
+  if (key === "generatorFreq") setGeneratorEditTarget("freq");
+  if (key === "generatorLevel") setGeneratorEditTarget("level");
   focusPanel(target.node);
 }
 
@@ -1160,6 +1454,7 @@ function analyzerSnapshot() {
     txAntennaId: state.analyzer.txAntennaId,
     rxAntennaId: state.analyzer.rxAntennaId,
     sourceProfileId: state.analyzer.sourceProfileId,
+    signalEnabled: state.generator.outputEnabled,
     carrierMHz: state.analyzer.carrierMHz,
     txPowerDbm: state.analyzer.txPowerDbm,
     distanceM: state.analyzer.distanceM,
@@ -1171,48 +1466,145 @@ function analyzerSnapshot() {
 }
 
 function sourceComponents(config, sweepStopMHz) {
-  if (!state.generator.outputEnabled) return [];
-  if (config.sourceProfileId === "am") return [{ freq: config.carrierMHz, relDb: 0, width: 1.1 }, { freq: Math.max(1, config.carrierMHz - 5), relDb: -12, width: 0.9 }, { freq: config.carrierMHz + 5, relDb: -12, width: 0.9 }];
+  if (!config.signalEnabled) return [];
+  if (config.sourceProfileId === "am") return [{ freq: config.carrierMHz, relDb: 0 }, { freq: Math.max(1, config.carrierMHz - 5), relDb: -12 }, { freq: config.carrierMHz + 5, relDb: -12 }];
   if (config.sourceProfileId === "clock") {
     const components = [];
     for (let harmonic = 1; harmonic <= 6; harmonic += 1) {
       const freq = config.carrierMHz * harmonic;
-      if (freq <= sweepStopMHz * 1.2) components.push({ freq, relDb: -(harmonic - 1) * 7.5, width: 1 + harmonic * 0.35 });
+      if (freq <= sweepStopMHz * 1.2) components.push({ freq, relDb: -(harmonic - 1) * 7.5 });
     }
     return components;
   }
-  return [{ freq: config.carrierMHz, relDb: 0, width: 1.2 }];
+  return [{ freq: config.carrierMHz, relDb: 0 }];
 }
 
 function receivedPeakDbm(config, frequencyMHz, relativeDb) {
-  if (!state.generator.outputEnabled) return -160;
+  if (!config.signalEnabled) return -160;
   return config.txPowerDbm + relativeDb + antennaResponseDb(getAntenna(config.txAntennaId), frequencyMHz) + antennaResponseDb(getAntenna(config.rxAntennaId), frequencyMHz) - fsplDb(frequencyMHz, config.distanceM) - 2.5 - shieldLossDb(config, frequencyMHz);
 }
 
+// Keep the FFT bin spacing comfortably below RBW so the display trace is driven by the RBW response, not by coarse sampling.
+function buildAnalyzerFftConfig(centerMHz, spanMHz, rbwKHz) {
+  const spanHz = Math.max(spanMHz * 1000000, 1000);
+  const rbwHz = Math.max(rbwKHz * 1000, 1);
+  const sampleRateHz = Math.max(spanHz * 1.2, rbwHz * 64);
+  const targetBinHz = Math.max(rbwHz / 8, 1);
+  const fftSize = nextPowerOfTwo(clamp(Math.ceil(sampleRateHz / targetBinHz), 16384, 65536));
+  return {
+    centerHz: centerMHz * 1000000,
+    spanHz,
+    rbwHz,
+    sampleRateHz,
+    fftSize,
+    binHz: sampleRateHz / fftSize,
+  };
+}
+
+function synthesizeAnalyzerSignalBins(snapshot, fftConfig, startMHz, stopMHz) {
+  const { fftSize, sampleRateHz, centerHz, binHz } = fftConfig;
+  const { window, coherentGain, enbwBins } = getAnalyzerHannWindow(fftSize);
+  const real = new Float64Array(fftSize);
+  const imag = new Float64Array(fftSize);
+  const components = sourceComponents(snapshot, stopMHz + fftConfig.rbwHz / 1000000);
+  components.forEach((component, index) => {
+    const offsetHz = component.freq * 1000000 - centerHz;
+    if (Math.abs(offsetHz) > sampleRateHz * 0.5) return;
+    const tonePowerW = dbmToWatts(receivedPeakDbm(snapshot, component.freq, component.relDb));
+    const amplitudeRms = Math.sqrt(tonePowerW * 50);
+    const phase = hashUnit(component.freq * 0.019 + index * 7.1) * Math.PI * 2;
+    const phaseStep = (Math.PI * 2 * offsetHz) / sampleRateHz;
+    const cosStep = Math.cos(phaseStep);
+    const sinStep = Math.sin(phaseStep);
+    let cosValue = Math.cos(phase);
+    let sinValue = Math.sin(phase);
+    for (let n = 0; n < fftSize; n += 1) {
+      const weightedAmplitude = amplitudeRms * window[n];
+      real[n] += weightedAmplitude * cosValue;
+      imag[n] += weightedAmplitude * sinValue;
+      const nextCos = cosValue * cosStep - sinValue * sinStep;
+      sinValue = sinValue * cosStep + cosValue * sinStep;
+      cosValue = nextCos;
+    }
+  });
+  fftComplex(real, imag);
+  const rawPower = new Float64Array(fftSize);
+  let peakPowerW = 0;
+  for (let i = 0; i < fftSize; i += 1) {
+    const amplitudeRms = Math.hypot(real[i], imag[i]) / (fftSize * coherentGain);
+    const powerW = (amplitudeRms * amplitudeRms) / 50;
+    rawPower[i] = powerW;
+    if (powerW > peakPowerW) peakPowerW = powerW;
+  }
+  const thresholdW = Math.max(peakPowerW * 1e-9, dbmToWatts(-170));
+  const guardMHz = Math.max((fftConfig.rbwHz * 6) / 1000000, (fftConfig.spanHz / 1000000) * 0.04);
+  const activeBins = [];
+  for (let i = 0; i < fftSize; i += 1) {
+    if (rawPower[i] < thresholdW) continue;
+    const signedBin = i < fftSize / 2 ? i : i - fftSize;
+    const frequencyMHz = centerHz / 1000000 + (signedBin * binHz) / 1000000;
+    if (frequencyMHz < startMHz - guardMHz || frequencyMHz > stopMHz + guardMHz) continue;
+    activeBins.push({ frequencyMHz, powerW: rawPower[i] });
+  }
+  return { activeBins, enbwBins };
+}
+
+function rbwFilterPowerResponse(offsetHz, rbwHz) {
+  const sigmaHz = Math.max(rbwHz / 2.35482, 1);
+  return Math.exp(-0.5 * ((offsetHz / sigmaHz) ** 2));
+}
+
+function analyzerNoiseFloorDbm(rbwHz) {
+  const noiseDensityDbmPerHz = -149;
+  return noiseDensityDbmPerHz + 10 * Math.log10(Math.max(rbwHz, 1));
+}
+
 function buildAnalyzerTrace(snapshot) {
-  const startMHz = Math.max(1, state.analyzer.centerMHz - state.analyzer.spanMHz / 2);
-  const stopMHz = startMHz + state.analyzer.spanMHz;
+  const startMHz = Math.max(0.001, state.analyzer.centerMHz - state.analyzer.spanMHz / 2);
+  const stopMHz = Math.max(startMHz + Math.max(state.analyzer.spanMHz, 0.001), startMHz + 0.001);
   const overlap = overlapBand(snapshot.txAntennaId, snapshot.rxAntennaId);
   const carrierInBand = overlap && snapshot.carrierMHz >= overlap.start && snapshot.carrierMHz <= overlap.stop;
-  const noiseFloorDbm = -98 + 10 * Math.log10(state.analyzer.rbwKHz / 120);
-  const components = sourceComponents(snapshot, stopMHz);
+  const fftConfig = buildAnalyzerFftConfig(state.analyzer.centerMHz, state.analyzer.spanMHz, state.analyzer.rbwKHz);
+  const { activeBins, enbwBins } = synthesizeAnalyzerSignalBins(snapshot, fftConfig, startMHz, stopMHz);
+  const noiseFloorDbm = analyzerNoiseFloorDbm(fftConfig.rbwHz);
   const points = 720;
   const frequencies = new Array(points);
   const levels = new Array(points);
   for (let i = 0; i < points; i += 1) {
     const freq = startMHz + (i / (points - 1)) * (stopMHz - startMHz);
-    let level = noiseFloorDbm + simNoise(i + freq * 0.21) * 1.7;
-    components.forEach((component, index) => {
-      const width = Math.max(component.width, state.analyzer.spanMHz / 260);
-      const shaped = receivedPeakDbm(snapshot, component.freq, component.relDb) - 12 * (((freq - component.freq) / width) ** 2);
-      level = Math.max(level, shaped + 0.12 * simNoise(i * (index + 3)));
+    let signalPowerW = 0;
+    const filterReachHz = fftConfig.rbwHz * 5;
+    activeBins.forEach((bin) => {
+      const offsetHz = Math.abs(freq - bin.frequencyMHz) * 1000000;
+      if (offsetHz > filterReachHz) return;
+      // Treat the fine FFT bins as a parallel filter bank, then apply the simulated RBW response on top.
+      signalPowerW += (bin.powerW / Math.max(enbwBins, 1)) * rbwFilterPowerResponse(offsetHz, fftConfig.rbwHz);
     });
+    const noiseFactor = clamp(-Math.log(Math.max(hashUnit(i * 0.91 + freq * 0.017), 1e-6)), 0.15, 3.5);
+    const noisePowerW = dbmToWatts(noiseFloorDbm) * noiseFactor;
+    const level = wattsToDbm(signalPowerW + noisePowerW);
     frequencies[i] = freq;
     levels[i] = level;
   }
   let peakIndex = 0;
   for (let i = 1; i < levels.length; i += 1) if (levels[i] > levels[peakIndex]) peakIndex = i;
-  return { startMHz, stopMHz, frequencies, levels, overlap, carrierInBand, noiseFloorDbm, peakIndex, peakFreqMHz: frequencies[peakIndex], peakLevelDbm: levels[peakIndex], carrierLevelDbm: receivedPeakDbm(snapshot, snapshot.carrierMHz, 0), shieldLoss: shieldLossDb(snapshot, snapshot.carrierMHz), pathLoss: fsplDb(snapshot.carrierMHz, snapshot.distanceM) + 2.5 };
+  const carrierIndex = Math.round(((snapshot.carrierMHz - startMHz) / Math.max(stopMHz - startMHz, 0.001)) * (points - 1));
+  const safeCarrierIndex = clamp(carrierIndex, 0, points - 1);
+  return {
+    startMHz,
+    stopMHz,
+    frequencies,
+    levels,
+    overlap,
+    carrierInBand,
+    noiseFloorDbm,
+    peakIndex,
+    peakFreqMHz: frequencies[peakIndex],
+    peakLevelDbm: levels[peakIndex],
+    carrierLevelDbm: levels[safeCarrierIndex],
+    shieldLoss: shieldLossDb(snapshot, snapshot.carrierMHz),
+    pathLoss: fsplDb(snapshot.carrierMHz, snapshot.distanceM) + 2.5,
+  };
 }
 
 function computeAnalyzerState() {
@@ -1334,14 +1726,17 @@ function syncAnalyzerOutputs() {
   elements.analyzerCenterInput.value = String(state.analyzer.centerMHz);
   elements.analyzerCenterOutput.textContent = fmtMHz(state.analyzer.centerMHz);
   elements.analyzerSpanSelect.value = String(state.analyzer.spanMHz);
-  elements.analyzerRbwSelect.value = String(state.analyzer.rbwKHz);
-  elements.analyzerSweepReadout.textContent = `${state.analyzer.sweepRunning ? "RUN" : "HOLD"} | ${fmtMHz(trace.startMHz)} ~ ${fmtMHz(trace.stopMHz)} | RBW ${state.analyzer.rbwKHz.toFixed(0)} kHz`;
+  if (elements.analyzerRbwSelect) {
+    const rbwOptionValue = `${Math.round(state.analyzer.rbwKHz)}`;
+    elements.analyzerRbwSelect.value = [...elements.analyzerRbwSelect.options].some((option) => option.value === rbwOptionValue) ? rbwOptionValue : elements.analyzerRbwSelect.options[0]?.value || "";
+  }
+  elements.analyzerSweepReadout.textContent = `${state.analyzer.sweepRunning ? "RUN" : "HOLD"} | ${fmtMHz(trace.startMHz)} ~ ${fmtMHz(trace.stopMHz)} | RBW ${formatBandwidthInUnit(state.analyzer.rbwKHz, state.analyzerConsole.displayUnits.rbw || "khz")}`;
   elements.baselineState.textContent = state.analyzer.referenceSnapshot
     ? `${tx("baselineStored")} / ${state.analyzer.showReferenceTrace ? tx("referenceVisible") : tx("referenceHidden")}`
     : tx("baselineEmpty");
   if (elements.clearBaselineButton) elements.clearBaselineButton.disabled = !state.analyzer.referenceSnapshot;
   elements.analyzerScaleDisplay.textContent = `Ref ${fmtDbm(state.analyzer.refLevelDbm)} | ${state.analyzer.dbPerDiv.toFixed(0)} dB/div`;
-  elements.analyzerOverlayScale.textContent = `Center ${fmtMHz(state.analyzer.centerMHz)} | Span ${fmtMHz(state.analyzer.spanMHz)} | Ref ${fmtDbm(state.analyzer.refLevelDbm)}`;
+  elements.analyzerOverlayScale.textContent = `Center ${formatValueInUnit(state.analyzer.centerMHz, state.analyzerConsole.displayUnits.center || "mhz")} | Span ${formatValueInUnit(state.analyzer.spanMHz, state.analyzerConsole.displayUnits.span || "mhz")} | Ref ${fmtDbm(state.analyzer.refLevelDbm)} | RBW ${formatBandwidthInUnit(state.analyzer.rbwKHz, state.analyzerConsole.displayUnits.rbw || "khz")}`;
   elements.analyzerOverlayBand.textContent = trace.overlap ? `Band ${fmtMHz(trace.overlap.start)} ~ ${fmtMHz(trace.overlap.stop)}` : tx("summaryCarrierNoOverlap");
   elements.analyzerMetricPeakFreq.textContent = fmtMHz(trace.peakFreqMHz);
   elements.analyzerMetricPeakLevel.textContent = fmtDbm(trace.peakLevelDbm);
@@ -1391,6 +1786,7 @@ function attachEvents() {
   elements.analyzerUnitButtons.forEach((button) => button.addEventListener("click", () => {
     if (state.analyzerConsole.editTarget === "ref") return;
     state.analyzerConsole.entryUnit = button.dataset.analyzerUnit;
+    state.analyzerConsole.displayUnits[state.analyzerConsole.editTarget] = button.dataset.analyzerUnit;
     if (state.analyzerConsole.entryBuffer && state.analyzerConsole.editTarget !== "ref") commitAnalyzerEntry(button.dataset.analyzerUnit);
     else syncAnalyzerConsoleOutputs();
   }));
@@ -1486,27 +1882,22 @@ function attachEvents() {
   elements.autoTuneButton.addEventListener("click", runAnalyzerAutoSet);
   elements.captureBaselineButton.addEventListener("click", () => handleAnalyzerAction("capture-baseline"));
   elements.clearBaselineButton.addEventListener("click", () => handleAnalyzerAction("clear-baseline"));
+  elements.generatorActionButtons.forEach((button) => button.addEventListener("click", () => handleGeneratorAction(button.dataset.generatorAction)));
+  elements.generatorKeypadButtons.forEach((button) => button.addEventListener("click", () => appendGeneratorEntry(button.dataset.generatorKeypad)));
   elements.generatorFrequencyInput?.addEventListener("input", (event) => {
     state.generator.editTarget = "freq";
-    state.generator.frequencyValue = Math.max(0.001, Number(event.target.value) || 0.001);
+    state.generator.entryBuffer = "";
+    setGeneratorFrequencyFromHz((Math.max(0.001, Number(event.target.value) || 0.001)) * generatorUnitScale[state.generator.frequencyUnit], state.generator.frequencyUnit);
     syncGeneratorOutputs();
   });
   elements.generatorLevelInput?.addEventListener("input", (event) => {
     state.generator.editTarget = "level";
+    state.generator.entryBuffer = "";
     state.generator.levelDbm = Math.max(-120, Math.min(30, Number(event.target.value) || 0));
     syncGeneratorOutputs();
   });
-  elements.generatorLevelButton?.addEventListener("click", () => {
-    state.generator.editTarget = "level";
-    elements.generatorLevelInput?.focus();
-    syncGeneratorOutputs();
-  });
   elements.generatorUnitButtons.forEach((button) => button.addEventListener("click", () => {
-    state.generator.editTarget = "freq";
-    const frequencyHz = getGeneratorFrequencyHz();
-    state.generator.frequencyUnit = button.dataset.generatorUnit;
-    state.generator.frequencyValue = frequencyHz / generatorUnitScale[state.generator.frequencyUnit];
-    syncGeneratorOutputs();
+    setGeneratorFrequencyUnit(button.dataset.generatorUnit);
   }));
   elements.generatorLevelStepButtons.forEach((button) => button.addEventListener("click", () => {
     state.generator.editTarget = "level";

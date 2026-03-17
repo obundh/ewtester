@@ -768,7 +768,7 @@
                 <label class="field">
                   <span data-i18n="quickCenterLabel">Center</span>
                   <div class="field-input-inline">
-                    <input id="quickCenterInput" type="number" min="10" max="18000" step="1" />
+                    <input id="quickCenterInput" type="number" min="0.001" max="18000" step="0.001" />
                     <span class="field-unit">MHz</span>
                   </div>
                 </label>
@@ -784,7 +784,7 @@
                 <label class="field">
                   <span data-i18n="quickRbwLabel">RBW</span>
                   <div class="field-input-inline">
-                    <input id="quickRbwInput" type="number" min="10" max="5000" step="10" />
+                    <input id="quickRbwInput" type="number" min="0.001" max="5000" step="0.001" />
                     <span class="field-unit">kHz</span>
                   </div>
                 </label>
@@ -1190,7 +1190,7 @@
             </div>
           </section>
 
-          <div class="layout generator-layout">
+          <div class="layout generator-layout generator-photo-layout">
             <aside class="panel controls-panel">
               <section class="panel-section">
                 <div class="section-heading">
@@ -1241,8 +1241,142 @@
               </section>
             </aside>
 
-            <section class="panel generator-panel">
+            <section class="panel generator-panel generator-machine-panel">
               <div class="panel-section generator-console-shell">
+                <div class="generator-machine-shell">
+                  <div class="generator-machine-rail">
+                    <div class="generator-utility-stack">
+                      <button class="generator-utility-button is-help" type="button" data-generator-action="open-manual" data-i18n="generatorUtilityHelp">HELP</button>
+                      <button class="generator-utility-button" type="button" data-generator-action="open-shield-setup" data-i18n="generatorUtilitySetup">SETUP</button>
+                      <button class="generator-utility-button" type="button" data-generator-action="open-analyzer" data-i18n="generatorUtilityInfo">INFO</button>
+                    </div>
+
+                    <div class="generator-power-block">
+                      <span class="generator-power-led"></span>
+                      <button class="generator-power-button" type="button" data-generator-action="rf-toggle" data-i18n="generatorRfButtonLabel">RF</button>
+                    </div>
+                  </div>
+
+                  <div class="generator-machine-body">
+                    <div class="generator-machine-header">
+                      <div class="generator-brand-badge">ROHDE&amp;SCHWARZ</div>
+                      <div class="generator-model-strip">SMB 100A - SIGNAL GENERATOR - 100 kHz ... 40 GHz</div>
+                    </div>
+
+                    <div class="generator-machine-main">
+                      <div class="generator-screen-bay">
+                        <div class="generator-screen-frame">
+                          <div class="generator-screen-top">
+                            <span class="generator-screen-brand">RF SIGNAL GENERATOR</span>
+                            <span id="generatorConsoleModeHardware" class="generator-console-mode">FREQ</span>
+                            <span id="generatorHardwareState" class="generator-screen-state">STANDBY</span>
+                          </div>
+
+                          <div class="generator-screen-readout">
+                            <div class="generator-screen-row">
+                              <span class="generator-display-label">Freq</span>
+                              <strong id="generatorFrequencyDisplayHardware">120.000 MHz</strong>
+                            </div>
+                            <div class="generator-screen-row">
+                              <span class="generator-display-label">Level</span>
+                              <strong id="generatorLevelDisplayHardware">10.0 dBm</strong>
+                            </div>
+                          </div>
+
+                          <div class="generator-screen-statusbar">
+                            <div class="generator-screen-chip">
+                              <span data-i18n="generatorUnitMeta">Unit</span>
+                              <strong id="generatorUnitDisplayHardware">MHz</strong>
+                            </div>
+                            <div class="generator-screen-chip">
+                              <span data-i18n="generatorLinkMeta">Experiment Link</span>
+                              <strong id="generatorLinkDisplayHardware">120.0 MHz / 10.0 dBm</strong>
+                            </div>
+                          </div>
+
+                          <section class="generator-entry-console" aria-label="Signal generator entry">
+                            <div class="generator-entry-head">
+                              <span data-i18n="generatorEntryTargetLabel">Selected</span>
+                              <strong id="generatorEntryTarget">Frequency</strong>
+                            </div>
+                            <div id="generatorEntryBuffer" class="generator-entry-buffer">120.000 MHz</div>
+                            <p class="generator-entry-note" data-i18n="generatorEntryHint">Enter a value, choose Hz unit or press ENTER, then use RF ON/OFF.</p>
+                          </section>
+
+                          <div class="generator-screen-tiles">
+                            <button class="generator-screen-tile" type="button" data-generator-action="select-freq" data-i18n="generatorTileFreq">Freq Config</button>
+                            <button class="generator-screen-tile" type="button" data-generator-action="select-level" data-i18n="generatorTileLevel">Level Config</button>
+                            <button class="generator-screen-tile" type="button" data-generator-action="rf-toggle" data-i18n="generatorTileRf">RF Output</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="generator-control-bay">
+                        <div class="generator-hardkey-column">
+                          <button class="generator-hardkey" type="button" data-generator-action="select-freq" data-i18n="generatorHardkeyFreq">FREQ</button>
+                          <button class="generator-hardkey" type="button" data-generator-action="select-level" data-i18n="generatorHardkeyLevel">LEVEL</button>
+                          <button class="generator-hardkey" type="button" data-generator-action="rf-toggle" data-i18n="generatorHardkeyToggle">ON/OFF TOGGLE</button>
+                          <button class="generator-hardkey" type="button" data-generator-action="backspace-entry" data-i18n="generatorHardkeyBackspace">BACK SPACE</button>
+                        </div>
+
+                        <div class="generator-keypad-bay">
+                          <div class="generator-keypad-grid" aria-label="Signal generator keypad">
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="7">7</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="8">8</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="9">9</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="4">4</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="5">5</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="6">6</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="1">1</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="2">2</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="3">3</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="0">0</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad=".">.</button>
+                            <button class="generator-keypad-button" type="button" data-generator-keypad="-">-</button>
+                          </div>
+
+                          <div class="generator-unit-column" aria-label="Signal generator units">
+                            <button class="generator-unit-button" type="button" data-generator-unit="ghz">GHz</button>
+                            <button class="generator-unit-button" type="button" data-generator-unit="mhz">MHz</button>
+                            <button class="generator-unit-button" type="button" data-generator-unit="khz">kHz</button>
+                            <button class="generator-unit-button" type="button" data-generator-unit="hz">Hz</button>
+                            <button class="generator-unit-button generator-level-commit" type="button" data-generator-action="commit-level">dBm</button>
+                          </div>
+                        </div>
+
+                        <div class="generator-rotary-cluster" aria-label="Signal generator tuning controls">
+                          <div class="generator-rotary-knob"></div>
+                          <div class="generator-arrow-pad">
+                            <button class="generator-arrow-button" type="button" data-generator-action="nudge-up" aria-label="Nudge up">UP</button>
+                            <button class="generator-arrow-button" type="button" data-generator-action="nudge-left" aria-label="Nudge left">LT</button>
+                            <button class="generator-arrow-button" type="button" data-generator-action="nudge-down" aria-label="Nudge down">DN</button>
+                            <button class="generator-arrow-button" type="button" data-generator-action="nudge-right" aria-label="Nudge right">RT</button>
+                          </div>
+                        </div>
+
+                        <div class="generator-side-column">
+                          <button class="generator-side-button" type="button" data-generator-action="clear-entry" data-i18n="generatorKeyEsc">ESC / CLOSE</button>
+                          <button class="generator-side-button" type="button" data-generator-action="enter-entry" data-i18n="generatorKeyEnter">ENTER</button>
+                          <button class="generator-side-button" type="button" data-generator-action="open-shield-setup" data-i18n="generatorSideSetup">SETUP</button>
+                          <button class="generator-side-button" type="button" data-generator-action="open-analyzer" data-i18n="generatorSideSpectrum">SPECTRUM</button>
+                          <button id="generatorRfConsoleButton" class="generator-side-button generator-rf-button" type="button" data-generator-action="rf-toggle" data-i18n="generatorRfOnOff">RF ON/OFF</button>
+                        </div>
+
+                        <div class="generator-connector-column" aria-hidden="true">
+                          <div class="generator-connector">
+                            <span class="generator-connector-label">MOD EXT</span>
+                          </div>
+                          <div class="generator-connector">
+                            <span class="generator-connector-label">LF</span>
+                          </div>
+                          <div class="generator-connector is-primary">
+                            <span class="generator-connector-label">RF 50 OHM</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div class="generator-console">
                   <div class="generator-console-top">
                     <span class="generator-console-brand">RF SIGNAL GENERATOR</span>
@@ -1273,7 +1407,7 @@
               </div>
             </section>
 
-            <aside class="panel readout-panel">
+            <aside class="panel readout-panel generator-readout-rack">
               <section class="panel-section">
                 <div class="section-heading">
                   <p class="eyebrow" data-i18n="generatorSummaryEyebrow">연동 상태</p>
